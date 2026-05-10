@@ -1,0 +1,18 @@
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAKvdr-yrPLiRN6ddJCusGidpBMTH1wO1g",
+  authDomain: "sezan-soccer.firebaseapp.com",
+  databaseURL: "https://sezan-soccer-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "sezan-soccer",
+  storageBucket: "sezan-soccer.firebasestorage.app",
+  messagingSenderId: "127594098602",
+  appId: "1:127594098602:web:7e01d0ea7d32bc730005d3"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);

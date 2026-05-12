@@ -29,3 +29,40 @@ button {
 button:active {
   background: #2980b9;
 }
+
+/* ===== 名簿 表示改善 ===== */
+.list {
+  margin-top: 8px;
+}
+.list-item {
+  padding: 6px 0;
+  border-bottom: 1px dotted #e1e6eb;
+  font-size: 14px;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge-senior {
+  background: #e8f2ff;
+  color: #1a73e8; /* 青 */
+}
+
+.badge-pennant {
+  background: #e9f7ef;
+  color: #1e8e3e; /* 緑 */
+}
+
+/* カウント表示 */
+.count {
+  margin-left: 10px;
+  font-size: 12px;
+}
+.count .senior { color: #1a73e8; font-weight: 700; }
+.count .pennant { color: #1e8e3e; font-weight: 700; }

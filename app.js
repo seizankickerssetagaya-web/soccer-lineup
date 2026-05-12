@@ -99,30 +99,80 @@ async function loadMembers(teamId) {
   return Object.values(snap.val());
 }
 
-/* ===== 起動（最小表示） ===== */
+/* ===== 起動（最小表示 + 月セレクタ） ===== */
 (async function start() {
-  // ※ここは今は固定（後でUI選択に差し替え）
+  // ※今は固定（後でUI選択に差し替え）
   const teamId = "1";
-
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
 
   // 初回Seed（既にあれば何もしない）
   await seedMembersIfEmpty(teamId);
 
-  // Firebaseから取得
+  // Firebaseから取得（以後はこれを使い回して表示だけ切替）
   const members = await loadMembers(teamId);
 
-  // 当月カテゴリ付与して表示
-  const enriched = members.map((m) => ({
-    ...m,
-    age: calcAgeAtMonth(m.birthday, year, month),
-    category: getCategoryAtMonth(m.birthday, year, month),
-  }));
+  // ---- 月セレクタを作る（前月〜翌月を含む 25ヶ月分）----
+  const ymSelect = document.getElementById("ymSelect");
+  const ymHint = document.getElementById("ymHint");
 
-  const el = document.getElementById("app");
-  el.innerHTML = enriched
-    .map((m) => `${m.fullName}（${m.category}）`)
-    .join("<br>");
+  function pad2(n){ return String(n).padStart(2,"0"); }
+
+  function buildYmOptions() {
+    if (!ymSelect) return;
+    ymSelect.innerHTML = "";
+    const now = new Date();
+    const base = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // -12〜+12ヶ月
+    for (let i = -12; i <= 12; i++) {
+      const d = new Date(base.getFullYear(), base.getMonth() + i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+      const opt = document.createElement("option");
+      opt.value = `${y}-${pad2(m)}`;
+      opt.textContent = `${y}年${m}月`;
+      ymSelect.appendChild(opt);
+    }
+
+    // 現在月を選択
+    ymSelect.value = `${base.getFullYear()}-${pad2(base.getMonth()+1)}`;
+  }
+
+  function getSelectedYearMonth() {
+    const v = ymSelect?.value || "";
+    const mm = /^(\d{4})-(\d{2})$/.exec(v);
+    if (!mm) {
+      const now = new Date();
+      return { year: now.getFullYear(), month: now.getMonth() + 1 };
+    }
+    return { year: Number(mm[1]), month: Number(mm[2]) };
+  }
+
+  // ---- 表示を更新（当月基準で毎回再判定）----
+  function render() {
+    const { year, month } = getSelectedYearMonth();
+
+    const enriched = members.map((m) => ({
+      ...m,
+      age: calcAgeAtMonth(m.birthday, year, month),
+      category: getCategoryAtMonth(m.birthday, year, month),
+    }));
+
+    // カウント表示（見やすく）
+    const seniorCount = enriched.filter(x => x.category === "senior").length;
+    const pennantCount = enriched.filter(x => x.category === "pennant").length;
+    if (ymHint) ymHint.textContent = `シニア ${seniorCount} / ペナント ${pennantCount}`;
+
+    // 一覧表示（改行あり）
+    const el = document.getElementById("app");
+    el.innerHTML = enriched
+      .map((m) => `${m.fullName}（${m.category}）`)
+      .join("<br>");
+  }
+
+  // 初期化
+  buildYmOptions();
+  render();
+
+  // 月変更で再描画（Firebaseは触らない）
+  ymSelect?.addEventListener("change", render);
 })();

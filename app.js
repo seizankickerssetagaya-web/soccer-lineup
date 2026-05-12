@@ -179,9 +179,10 @@ async function render() {
   const pennantCount = enriched.filter(x => x.category === "pennant").length;
   if (ymHint) ymHint.textContent = `${teamId}組：シニア ${seniorCount} / ペナント ${pennantCount}`;
 
-  appEl.innerHTML = enriched
-    .map(m => `${m.fullName}（${m.category}）`)
-    .join("<br>");
+appEl.innerHTML = enriched
+  .map(m => `${m.fullName}（${m.category}）`)
+  .join("<br>");
+``
 
   console.log("render teamId=", teamId, "members=", members.length);
 }

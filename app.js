@@ -159,28 +159,32 @@ async function loadMembers(teamId) {
   }
 
   // 描画
-  async function render() {
-    const teamId = getSelectedTeamId();
-    const { year, month } = getSelectedYearMonth();
+async function render() {
+  const teamId = String(getSelectedTeamId());  // 念のため文字列化
+  const { year, month } = getSelectedYearMonth();
 
-    appEl.textContent = "Loading...";
+  appEl.textContent = `Loading...（${teamId}組）`;
 
-    const members = await ensureMembers(teamId);
+  // ★チーム切替のたびに seed確認 → その直後に必ず読み直す
+  await seedMembersIfEmpty(teamId);
+  const members = await loadMembers(teamId);   // ←キャッシュを使わない
 
-    const enriched = members.map((m) => ({
-      ...m,
-      age: calcAgeAtMonth(m.birthday, year, month),
-      category: getCategoryAtMonth(m.birthday, year, month),
-    }));
+  const enriched = members.map((m) => ({
+    ...m,
+    age: calcAgeAtMonth(m.birthday, year, month),
+    category: getCategoryAtMonth(m.birthday, year, month),
+  }));
 
-    const seniorCount = enriched.filter(x => x.category === "senior").length;
-    const pennantCount = enriched.filter(x => x.category === "pennant").length;
-    if (ymHint) ymHint.textContent = `シニア ${seniorCount} / ペナント ${pennantCount}`;
+  const seniorCount = enriched.filter(x => x.category === "senior").length;
+  const pennantCount = enriched.filter(x => x.category === "pennant").length;
+  if (ymHint) ymHint.textContent = `${teamId}組：シニア ${seniorCount} / ペナント ${pennantCount}`;
 
-    appEl.innerHTML = enriched
-      .map(m => `${m.fullName}（${m.category}）`)
-      .join("<br>");
-  }
+  appEl.innerHTML = enriched
+    .map(m => `${m.fullName}（${m.category}）`)
+    .join("<br>");
+
+  console.log("render teamId=", teamId, "members=", members.length);
+}
 
   // 初期化
   buildYmOptions();

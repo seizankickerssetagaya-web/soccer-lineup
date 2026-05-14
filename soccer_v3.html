@@ -487,7 +487,36 @@ const TEAMS = {
   hawks:  { e:'🦅', n:'Hawks',  s:'3組' },
 };
 const GROUPS = { senior:'シニア', pennant:'ペナント' };
-const MTYPES = { senior:['シニア戦'], pennant:['現役戦','OB戦','混合戦'] };
+// ★ 1日に2試合に対応
+const GAME_CNT = 2;
+
+// 種別ごとの「基本」試合タイプ
+const BASE_MTYPES = {
+  senior:['シニア戦'],
+  pennant:['現役戦','OB戦','混合戦']
+};
+
+// インデックス計算用
+function baseTypes(){
+  return BASE_MTYPES[S.group] || [];
+}
+function baseLen(){
+  return baseTypes().length;
+}
+function matchCount(){
+  return baseLen() * GAME_CNT; // senior=2, pennant=6
+}
+function miOf(gameIdx, tabIdx){
+  // gameIdx: 0(1試合目) / 1(2試合目)
+  // tabIdx: 0..(baseLen-1)
+  return gameIdx * baseLen() + tabIdx;
+}
+function matchLabelByIndex(i){
+  const b = baseTypes()[i % baseLen()] || `試合${i+1}`;
+  const g = Math.floor(i / baseLen()) + 1; // 1 or 2
+  // stats表示用のラベル
+  return (baseLen() === 1) ? `${g}試合目` : `${b}（${g}試合目）`;
+}
 
 // ================================================================
 // 名簿データ（Excel: members.xlsx から転記）
@@ -723,6 +752,7 @@ const S = {
   month:null, months:[],
   roster:{}, attend:{}, matches:[],
   statsOpen:false, step:1,
+  gameIdx: 0, // ★ 0=1試合目 / 1=2試合目
   pennantTab:0,  // 0=現役 1=OB 2=混合
 };
 
@@ -880,26 +910,33 @@ async function loadMonth() {
   applyMatches(raw);
 }
 
-
-function applyMatches(raw) {
-  const types = MTYPES[S.group];
-  if (raw) {
-    const arr = toArr(raw);
-    S.matches = arr.map((m,i)=>normMatch(m, types[i]||`試合${i+1}`));
-    while (S.matches.length < types.length)
-      S.matches.push(empty(types[S.matches.length]));
-  } else {
-    S.matches = types.map(t=>empty(t));
-  }
-}
-
+// ★ リアルタイム更新リスナー（グローバル）
 function startListeners() {
   fbOff();
   const mp = mPath();
-  fbOn(`${mp}/roster`,    v=>{ S.roster=v||{}; renderSB(); renderContent(); });
-  fbOn(`${mp}/attendance`,v=>{ S.attend=v||{}; renderSB(); renderContent(); });
-  fbOn(`${mp}/matches`,   v=>{ applyMatches(v); renderContent(); if(S.statsOpen) renderStats(); });
+  fbOn(`${mp}/roster`, v => { S.roster = v || {}; renderSB(); renderContent(); });
+  fbOn(`${mp}/attendance`, v => { S.attend = v || {}; renderSB(); renderContent(); });
+  fbOn(`${mp}/matches`, v => { applyMatches(v); renderContent(); if (S.statsOpen) renderStats(); });
 }
+
+// ★ 2試合分まで自動補完して matches を作る（グローバルに1つだけ）
+function applyMatches(raw) {
+  const bt = baseTypes();          // ['現役戦','OB戦','混合戦']
+  const need = matchCount();       // pennant = 6
+
+  const arr = toArr(raw);
+
+  S.matches = [];
+  for (let i = 0; i < need; i++) {
+    const src = arr[i];
+    S.matches.push(
+      src
+        ? normMatch(src, bt[i % bt.length])
+        : empty(bt[i % bt.length])
+    );
+  }
+}
+
 
 /* ================================================================
    MUTATIONS
@@ -910,10 +947,38 @@ async function setPos(mi,q,posId,pid) {
   if(!S.matches[mi][q].positions) S.matches[mi][q].positions={};
   pid ? (S.matches[mi][q].positions[posId]=pid) : delete S.matches[mi][q].positions[posId];
 }
+// ★ 1試合目 → 2試合目 へ「配置」を丸ごとコピー
+async function copyGame1toGame2() {
+  if (!S.isMgr) return;
+
+  if (!confirm('1試合目の配置を2試合目へコピーします。2試合目の配置は上書きされます。よろしいですか？')) return;
+
+  const n = baseLen();   // senior=1 / pennant=3
+  const from = 0;        // 1試合目
+  const to = n;          // 2試合目
+
+  for (let i = 0; i < n; i++) {
+    const src = S.matches[from + i] || empty(baseTypes()[i]);
+
+    S.matches[to + i] = {
+      matchType: src.matchType,
+      q1: { formation: src.q1?.formation || DEF_FORM, positions: { ...(src.q1?.positions || {}) } },
+      q2: { formation: src.q2?.formation || DEF_FORM, positions: { ...(src.q2?.positions || {}) } },
+      bench: [ ...(src.bench || []) ]
+    };
+  }
+
+  await fbSet(`${mPath()}/matches`, S.matches);
+  renderContent();
+  if (S.statsOpen) renderStats();
+}
 async function setForm(mi,q,form) {
   await fbSet(`${mPath()}/matches/${mi}/${q}/formation`,form);
   S.matches[mi][q].formation=form;
 }
+
+
+
 async function addBench(mi,pid) {
   const b=[...(S.matches[mi].bench||[])];
   if(b.includes(pid)) return;
@@ -994,17 +1059,28 @@ async function copyQ1toQ2(mi) {
 }
 async function resetPos() {
   if(!confirm('当月の配置をリセットします。名簿・出欠は保持されます。')) return;
-  const types=MTYPES[S.group];
-  const em=types.map(t=>empty(t));
-  await fbSet(`${mPath()}/matches`,em);
-  S.matches=em; renderContent();
+
+  const types = baseTypes();
+  const em = [];
+  for (let g = 0; g < GAME_CNT; g++) {
+    types.forEach(t => em.push(empty(t)));
+  }
+
+  await fbSet(`${mPath()}/matches`, em);
+  S.matches = em;
+  renderContent();
 }
+
 async function resetAll() {
   if(!confirm('当月の全データを削除します。この操作は取り消せません。')) return;
   if(!confirm('本当によろしいですか？')) return;
   await fbDel(mPath());
   S.roster={}; S.attend={};
-  S.matches=MTYPES[S.group].map(t=>empty(t));
+  S.matches = [];
+const types = baseTypes();
+for (let g = 0; g < GAME_CNT; g++) {
+  types.forEach(t => S.matches.push(empty(t)));
+}
   renderSB(); renderContent();
 }
 async function doAddMonth(ym) {
@@ -1015,7 +1091,12 @@ async function doAddMonth(ym) {
     roster=await fbGet(`${tPath()}/${prev}/roster`)||{};
     attend=await fbGet(`${tPath()}/${prev}/attendance`)||{};
   }
-  const matches=MTYPES[S.group].map(t=>empty(t));
+  const types = baseTypes();
+const matches = [];
+for (let g = 0; g < GAME_CNT; g++) {
+  types.forEach(t => matches.push(empty(t)));
+}
+
   await fbSet(`${tPath()}/${ym}`,{roster,attendance:attend,matches});
   S.months.push(ym); S.months.sort();
   S.month=ym; S.roster=roster; S.attend=attend; S.matches=matches;
@@ -1062,20 +1143,34 @@ function renderSB() {
    RENDER — CONTENT (MATCH CARDS)
 ================================================================ */
 function renderContent() {
-  const el=document.getElementById('content');
-  const sc=el.scrollTop;
-  if(S.group==='pennant'){
-    const tabNames=['現役戦','OB戦','混合戦'];
-    const tabs=`<div class="match-tabs">${tabNames.map((n,i)=>
-      `<button class="match-tab${S.pennantTab===i?' active':''}" onclick="S.pennantTab=${i};renderContent()">${n}</button>`
-    ).join('')}</div>`;
-    const idx=Math.min(S.pennantTab, S.matches.length-1);
-    const card=S.matches[idx]?renderCard(S.matches[idx],idx):'';
-    el.innerHTML=tabs+card;
+  const el = document.getElementById('content');
+  const sc = el.scrollTop;
+
+  const gameBar = `
+    <div class="match-tabs">
+      <button class="match-tab ${S.gameIdx===0?'active':''}" data-a="game" data-gi="0">1試合目</button>
+      <button class="match-tab ${S.gameIdx===1?'active':''}" data-a="game" data-gi="1">2試合目</button>
+      ${S.isMgr ? `<button class="match-tab" data-a="cp12">1試合目→2試合目コピー</button>` : ``}
+    </div>
+  `;
+
+  if (S.group === 'pennant') {
+    const tabNames = ['現役戦','OB戦','混合戦'];
+    const tabs = `
+      <div class="match-tabs">
+        ${tabNames.map((n,i)=>`
+          <button class="match-tab ${S.pennantTab===i?'active':''}" data-a="ptab" data-ti="${i}">${n}</button>
+        `).join('')}
+      </div>
+    `;
+    const idx = miOf(S.gameIdx, S.pennantTab);
+    el.innerHTML = gameBar + tabs + (S.matches[idx] ? renderCard(S.matches[idx], idx) : '');
   } else {
-    el.innerHTML=S.matches.map((m,i)=>renderCard(m,i)).join('');
+    const idx = miOf(S.gameIdx, 0);
+    el.innerHTML = gameBar + (S.matches[idx] ? renderCard(S.matches[idx], idx) : '');
   }
-  el.scrollTop=sc;
+
+  el.scrollTop = sc;
 }
 
 function renderCard(m,mi) {
@@ -1276,6 +1371,29 @@ document.addEventListener('click', async e=>{
 
   /* --- SIDEBAR TOOLS --- */
   const a=t.closest('[data-a]')?.dataset?.a;
+// ★ 試合切替（1試合目 / 2試合目）
+if (a === 'game') {
+  const el = t.closest('[data-a]');
+  const gi = +el.dataset.gi;     // 0 or 1
+  S.gameIdx = gi;
+  renderContent();
+  return;
+}
+
+// ★ ペナントのタブ切替（現役 / OB / 混合）
+if (a === 'ptab') {
+  const el = t.closest('[data-a]');
+  const ti = +el.dataset.ti;     // 0..2
+  S.pennantTab = ti;
+  renderContent();
+  return;
+}
+
+// ★ 1試合目 → 2試合目 コピー
+if (a === 'cp12') {
+  await copyGame1toGame2();
+  return;
+}
   if(a==='roster'){ openM('m-roster'); renderRoster(); return; }
   if(a==='rpos')  { doResetPos(); return; }  // Note: typo fix - was resetPos, correct name used here
 

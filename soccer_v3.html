@@ -334,9 +334,27 @@ input:focus{border-color:var(--accent)}
 }
 
 /* 親の overflow によるクリップを回避 */
-.mc-body,
+.mc-body{
+  display:flex;
+  gap:8px;
+  padding:8px;
+
+  overflow-x:auto;
+  overflow-y:hidden;
+
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
 .quarter{
-  overflow: visible;
+  flex:0 0 85%;
+  min-width:220px;
+
+  display:flex;
+  flex-direction:column;
+
+  scroll-snap-align:start;
+  overflow:hidden;
 }
 /* ===== シニア監督：フォーメーション選択（モーダル） ===== */
 .fbtn{

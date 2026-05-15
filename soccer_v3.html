@@ -404,8 +404,23 @@ input:focus{border-color:var(--accent)}
 /* Mobile */
 @media(max-width:480px){
   :root{--sw:115px}
-  .pdot{width:32px;height:32px}
-  .p-nm{font-size:9px;max-width:24px}
+
+  .pdot{
+    width:52px;   /* ← 32 → 42 */
+    height:52px;
+  }
+
+  .p-nm{
+    font-size:11px;     /* ← 9 → 11 */
+    max-width:36px;     /* ← 24 → 36 */
+    white-space:normal; /* ✅ 折り返しON（これ重要） */
+    line-height:1.1;
+    text-align:center;
+  }
+
+  .p-lb{
+    font-size:9px;
+  }
 }
 
 /* ペナントタブ */

@@ -1901,13 +1901,19 @@ function pr_pitchHtml(m, q){
     const pid = pos[p.id] || '';
     const nm  = pid ? dispName(pid) : '';
     const sn  = nm ? (nm.length>6 ? nm.slice(0,6)+'…' : nm) : '';
-    const gk  = (p.id === 'gk');
+const gk = (p.id === 'gk');
 
-    return `
-      <div class="pd ${pid?'occ':''} ${gk?'gk':''}" style="left:${p.x}%;top:${p.y}%;">
-        <div class="lb">${esc(p.lb)}</div>
-        <div class="nm">${esc(sn)}</div>
-      </div>`;
+// ★ 2Qのときだけ、同ポジションの1Q担当を参照して「変更」を判定
+const q1pid = (q === 'q2') ? (m?.q1?.positions?.[p.id] || '') : '';
+const chg  = (q === 'q2' && pid && q1pid && pid !== q1pid);
+
+return `
+  <div class="pd ${pid?'occ':''} ${gk?'gk':''} ${chg?'chg':''}" style="left:${p.x}%;top:${p.y}%;">
+
+    <div class="lb">${esc(p.lb)}</div>
+    <div class="nm">${esc(sn)}</div>
+
+  </div>`;
   }).join('');
 
   return `
@@ -2048,23 +2054,39 @@ function doPrint(){
     .pitchP .ga.top{ top:4%; border-top:none; }
     .pitchP .ga.bot{ bottom:4%; border-bottom:none; }
 
-    .pd{
-      position:absolute;
-      transform:translate(-50%,-50%);
-      width:10mm; height:10mm;    /* ← 点も小さく */
-      border-radius:50%;
-      border:1px solid rgba(0,0,0,.55);
-      background:rgba(255,255,255,.85);
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      padding:0.5mm;
-      box-sizing:border-box;
-    }
-    .pd.occ{ background:rgba(33,150,243,.18); border-color:rgba(33,150,243,.6); }
-    .pd.gk.occ{ background:rgba(255,152,0,.18); border-color:rgba(255,152,0,.7); }
+.pd{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  width:10mm; height:10mm;    /* ← 点も小さく */
+  border-radius:50%;
+  border:1px solid rgba(30,90,140,.55);
+  background:rgba(173,216,230,.45); /* 薄い青（全ポジション） */
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:0.5mm;
+  box-sizing:border-box;
+}
+
+/* 選手が入っている場合は少し濃い青 */
+.pd.occ{
+  background:rgba(173,216,230,.75);
+  border-color:rgba(30,90,140,.75);
+}
+
+/* ★ 2Qで1Qから変更があったポジション：薄いピンク */
+.pd.chg.occ{
+  background:rgba(255,192,203,.75);
+  border-color:rgba(233,30,99,.65);
+}
+
+/* GKも他と同じ（青に統一） */
+.pd.gk.occ{
+  background:rgba(173,216,230,.75);
+  border-color:rgba(30,90,140,.75);
+}
     .pd .lb{ font-size:6.5pt; font-weight:700; line-height:1; }
     .pd .nm{
   font-size:6pt;

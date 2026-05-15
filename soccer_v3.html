@@ -884,8 +884,8 @@ function calcAge(dobStr){
   const t = new Date();
   let age = t.getFullYear() - d.getFullYear();
   const m = t.getMonth() - d.getMonth();
-if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age--;
-return age;
+  if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age--;
+  return age;
 }
 
 // 既定名簿（ログイン後、名簿が空のときだけ使う）
@@ -1122,7 +1122,7 @@ const esc = s => String(s)
 const dispName = id => {
   const d = S.roster[id];
   if(!d) return '?';
-  return (d.nick && d.nick.trim()) ? d.nick.trim() : (d.name||'?');
+  return (d.nick && d.nick.trim()) ? d.nick.trim() : (d.name || '?');
 };
 
 const tPath = ()  => `teams/${S.key}`;
@@ -1684,32 +1684,49 @@ function startDrag(pid,name,x,y){
   ghostAt(x,y);
   document.querySelector(`.pl-item[data-pid="${pid}"]`)?.classList.add('dragging');
 }
+
 function moveDrag(x,y){
   if(!drag) return;
   ghostAt(x,y);
+
   ghost.style.visibility='hidden';
   const el=document.elementFromPoint(x,y);
   ghost.style.visibility='visible';
+
   document.querySelectorAll('.dov').forEach(e=>e.classList.remove('dov'));
   if(el){
-    const pd=el.closest('[data-a="cpos"]'), ba=el.closest('[data-a="bdrop"]');
+    const pd=el.closest('[data-a="cpos"]');
+    const ba=el.closest('[data-a="bdrop"]');
     if(pd) pd.classList.add('dov');
     else if(ba) ba.classList.add('dov');
   }
 }
+
 async function endDrag(x,y){
   if(!drag) return;
   ghost.style.display='none';
   document.querySelectorAll('.dov').forEach(e=>e.classList.remove('dov'));
   document.querySelector(`.pl-item[data-pid="${drag.pid}"]`)?.classList.remove('dragging');
+
   ghost.style.visibility='hidden';
   const el=document.elementFromPoint(x,y);
   ghost.style.visibility='visible';
+
   if(el){
     const pd=el.closest('[data-a="cpos"]');
     const ba=el.closest('[data-a="bdrop"]');
-    if(pd){ await setPos(+pd.dataset.mi, pd.dataset.q, pd.dataset.pos, drag.pid); renderContent(); }
-    else if(ba){ await addBench(+ba.dataset.mi, drag.pid); renderContent(); }
+
+    if (pd) {
+      await setPos(+pd.dataset.mi, pd.dataset.q, pd.dataset.pos, drag.pid);
+      renderContent();
+      renderSB();
+      if (S.statsOpen) renderStats();
+    } else if (ba) {
+      await addBench(+ba.dataset.mi, drag.pid);
+      renderContent();
+      renderSB();
+      if (S.statsOpen) renderStats();
+    }
   }
   drag=null;
 }
@@ -1717,7 +1734,9 @@ async function endDrag(x,y){
 /* Touch */
 document.addEventListener('touchend',e=>{
   if(!drag) return;
-  const t=e.changedTouches[0]; endDrag(t.clientX,t.clientY); e.preventDefault();
+  const t=e.changedTouches[0];
+  endDrag(t.clientX,t.clientY);
+  e.preventDefault();
 },{passive:false});
 
 /* Mouse */

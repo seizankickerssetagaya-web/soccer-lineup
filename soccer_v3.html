@@ -151,30 +151,53 @@ input:focus{border-color:var(--accent)}
 .mc-title{font-size:15px;font-weight:700;color:var(--accent)}
 .mc-copy{font-size:10px;padding:4px 9px;background:rgba(33,150,243,.25);
   color:#90caf9;border:1px solid rgba(33,150,243,.35)}
+
 .mc-body{
   display:flex;
   gap:8px;
   padding:8px;
-
-  overflow-x:auto;
-  overflow-y:hidden;
-
-  scroll-snap-type:x mandatory;
 }
 
-.quarter{
-  flex:0 0 calc(50% - 4px);  /* ← PCは元に戻す */
-  min-width:160px;
-  display:flex;
-  flex-direction:column;
+/* ▼ PC：スクロール禁止＋左詰め（ここが重要） */
+@media(min-width:768px){
+  .mc-body{
+    gap:4px;
+    justify-content:flex-start;
+    overflow-x:visible;   /* ★ auto を上書き */
+    scroll-snap-type:none;/* ★ スナップも無効に */
+  }
+
+  .quarter{
+    flex:0 0 auto;
+    width:48%;
+  }
 }
+/* ▼ PC専用：強制的にスクロール禁止＋左詰め */
+@media(min-width:768px){
+  .mc-body{
+    justify-content:flex-start !important;
+    overflow-x:hidden !important;
+    scroll-snap-type:none !important;
+  }
+
+  .quarter{
+    flex:0 0 auto !important;
+    width:48% !important;
+  }
+}
+
+
+/* ▼ スマホ */
 @media(max-width:480px){
   .quarter{
     flex:0 0 85%;
     min-width:220px;
   }
-}
 
+  .mc-body{
+    overflow-x:auto; /* スマホだけスクロール維持 */
+  }
+}
 .q-label{text-align:center;font-size:11px;font-weight:700;color:var(--dim);
   margin-bottom:4px;padding:3px;background:rgba(0,0,0,.2);border-radius:5px}
 .f-row{display:flex;gap:4px;margin-bottom:5px}
@@ -214,26 +237,65 @@ input:focus{border-color:var(--accent)}
 .pitch-ga.top{top:4%;border-top:none}
 .pitch-ga.bot{bottom:4%;border-bottom:none}
 
-/* Position dot */
-.pdot{position:absolute;transform:translate(-50%,-50%);
-  width:34px;height:34px;border-radius:50%;
+/* =========================
+   Position dot
+========================= */
+
+.pdot{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  width:34px;
+  height:34px;
+  border-radius:50%;
   border:2px solid rgba(255,255,255,.42);
   background:rgba(0,0,0,.22);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  cursor:pointer;z-index:2;transition:background .12s,border-color .12s;
-  pointer-events:all}
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  z-index:2;
+  transition:background .12s,border-color .12s;
+  pointer-events:all;
+}
+
 .pdot:hover{border-color:#fff;background:rgba(255,255,255,.15)}
 .pdot.occ{background:rgba(21,63,128,.85);border-color:rgba(100,160,255,.9)}
 .pdot.occ-gk{background:rgba(130,60,0,.85);border-color:rgba(255,160,50,.9)}
-.pdot.changed{background:rgba(180,0,30,.85);border-color:var(--changed);
-  animation:pls 1.5s infinite}
-@keyframes pls{0%,100%{box-shadow:0 0 4px rgba(255,23,68,.4)}
-  50%{box-shadow:0 0 12px rgba(255,23,68,.75)}}
-.pdot.dov{background:rgba(0,200,80,.3);border-color:#00e676}
-.p-lb{font-size:7.5px;color:rgba(255,255,255,.55);line-height:1}
-.p-nm{font-size:8.5px;font-weight:700;color:#fff;
-  max-width:30px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
 
+.p-lb{
+  font-size:7.5px;
+  color:rgba(255,255,255,.55);
+  line-height:1;
+}
+
+.p-nm{
+  font-size:8.5px;
+  font-weight:700;
+  color:#fff;
+  max-width:30px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  line-height:1.2;
+}
+
+/* ▼ PCだけ拡大 */
+@media(min-width:768px){
+  .pdot{
+    width:64px;
+    height:64px;
+  }
+
+  .p-nm{
+    font-size:15px;
+    max-width:60px;
+  }
+
+  .p-lb{
+    font-size:12px;
+  }
+}
 /* Bench */
 .bench-wrap{padding:8px 10px;border-top:1px solid var(--border)}
 .bench-head{font-size:11px;color:var(--dim);margin-bottom:5px;
@@ -339,8 +401,7 @@ input:focus{border-color:var(--accent)}
   gap:8px;
   padding:8px;
 
-  overflow-x:auto;
-  overflow-y:hidden;
+ overflow-y:hidden;
 
   scroll-snap-type:x mandatory;
   -webkit-overflow-scrolling: touch;
@@ -1598,10 +1659,6 @@ async function endDrag(x,y){
 }
 
 /* Touch */
-document.addEventListener('touchmove',e=>{
-  if(!drag) return;
-  const t=e.touches[0]; moveDrag(t.clientX,t.clientY); e.preventDefault();
-},{passive:false});
 document.addEventListener('touchend',e=>{
   if(!drag) return;
   const t=e.changedTouches[0]; endDrag(t.clientX,t.clientY); e.preventDefault();

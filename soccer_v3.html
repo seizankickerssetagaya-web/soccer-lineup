@@ -134,7 +134,6 @@ input:focus{border-color:var(--accent)}
   font-weight:700;
   color:#c8e6c9;
 }
-``
 .pl-item.absent{opacity:.42}
 .pl-item.dragging{opacity:.15;cursor:grabbing}
 .pl-cb{width:14px;height:14px;cursor:pointer;flex-shrink:0;accent-color:#4caf50}
@@ -152,8 +151,30 @@ input:focus{border-color:var(--accent)}
 .mc-title{font-size:15px;font-weight:700;color:var(--accent)}
 .mc-copy{font-size:10px;padding:4px 9px;background:rgba(33,150,243,.25);
   color:#90caf9;border:1px solid rgba(33,150,243,.35)}
-.mc-body{display:flex;gap:6px;padding:8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.quarter{flex:0 0 calc(50% - 4px);min-width:160px;display:flex;flex-direction:column}
+.mc-body{
+  display:flex;
+  gap:8px;
+  padding:8px;
+
+  overflow-x:auto;
+  overflow-y:hidden;
+
+  scroll-snap-type:x mandatory;
+}
+
+.quarter{
+  flex:0 0 calc(50% - 4px);  /* ← PCは元に戻す */
+  min-width:160px;
+  display:flex;
+  flex-direction:column;
+}
+@media(max-width:480px){
+  .quarter{
+    flex:0 0 85%;
+    min-width:220px;
+  }
+}
+
 .q-label{text-align:center;font-size:11px;font-weight:700;color:var(--dim);
   margin-bottom:4px;padding:3px;background:rgba(0,0,0,.2);border-radius:5px}
 .f-row{display:flex;gap:4px;margin-bottom:5px}
@@ -161,9 +182,21 @@ input:focus{border-color:var(--accent)}
 .f-lbl{text-align:center;font-size:10px;color:var(--dim);margin-bottom:5px}
 
 /* Pitch */
-.pitch{position:relative;width:100%;height:240px;
-  border-radius:8px;overflow:hidden;background:#2e7d32;
-  border:2px solid rgba(255,255,255,.22)}
+.pitch{
+  position:relative;
+  width:100%;
+
+  aspect-ratio: 2 / 3;   /* ★縦横比固定 */
+
+  border-radius:8px;
+  overflow:hidden;
+  background:#2e7d32;
+  border:2px solid rgba(255,255,255,.22);  /* ←ここに ; 必須 */
+
+  max-width:360px;
+  margin:0 auto;
+}
+
 /* Field markings via separate overlay */
 .pitch-lines{position:absolute;inset:0;pointer-events:none}
 .pitch-lines::before{content:'';position:absolute;
@@ -990,49 +1023,59 @@ function normMatch(raw, fallbackType) {
     bench: toArr(raw.bench),
   };
 }
-
 function calcPoints() {
   const pts = {};
-  Object.keys(S.roster).forEach(id=>{ pts[id]={total:0,detail:[]}; });
+  Object.keys(S.roster).forEach(id=>{
+    pts[id] = { total:0, gk:0, field:0, detail:[] };
+  });
+
   S.matches.forEach(m => {
-    const q1s = new Set(Object.values(m.q1?.positions||{}).filter(Boolean));
-    const q2s = new Set(Object.values(m.q2?.positions||{}).filter(Boolean));
+    const q1pos = (m.q1 && m.q1.positions) ? m.q1.positions : {};
+    const q2pos = (m.q2 && m.q2.positions) ? m.q2.positions : {};
+
+    const q1s = new Set(Object.values(q1pos).filter(Boolean));
+    const q2s = new Set(Object.values(q2pos).filter(Boolean));
+
+    const q1gk = q1pos.gk || null;
+    const q2gk = q2pos.gk || null;
+
     Object.keys(S.roster).forEach(id => {
-      const p = (q1s.has(id)?0.5:0)+(q2s.has(id)?0.5:0);
-      pts[id].detail.push({type:m.matchType, pts:p});
+      const p1 = q1s.has(id) ? 0.5 : 0;
+      const p2 = q2s.has(id) ? 0.5 : 0;
+      const p  = p1 + p2;
+
+      const gkP = (q1gk === id ? 0.5 : 0) + (q2gk === id ? 0.5 : 0);
+      const fieldP = p - gkP;
+
+      pts[id].detail.push({ type: m.matchType, pts: p, gk: gkP, field: fieldP });
       pts[id].total += p;
+      pts[id].gk    += gkP;
+      pts[id].field += fieldP;
     });
   });
+
   return pts;
 }
-
 function sortedPlayers() {
-  const pts = calcPoints(); // ★ 出場ポイント取得
+  const pts = calcPoints();
 
   return Object.entries(S.roster)
     .map(([id,d])=>({
       id,
-      name:d.name||'',
-      nick:d.nick||'',
-      disp:dispName(id),
-      present:!!S.attend[id],
-      pt:(pts[id]?.total)||0   // ★ ポイント追加
+      name: d.name || '',
+      nick: d.nick || '',
+      disp: dispName(id),
+      present: !!S.attend[id],
+      pt: (pts[id] && pts[id].total) ? pts[id].total : 0
     }))
     .sort((a,b)=>{
-
-      // ① 出席者を上に
       if(a.present!==b.present) return b.present?1:-1;
-
-      // ② 出席者同士は「ポイント少ない順」
       if(a.present && b.present){
-        if(a.pt !== b.pt) return a.pt - b.pt;
+        if(a.pt !== b.pt) return a.pt - b.pt; // 出席者はポイント少ない順
       }
-
-      // ③ 最後は名前順
       return a.disp.localeCompare(b.disp,'ja');
     });
 }
-``
 
 /* ================================================================
    AUTH
@@ -1328,13 +1371,13 @@ function renderContent() {
   const el = document.getElementById('content');
   const sc = el.scrollTop;
 
-  const gameBar = `
-    <div class="match-tabs">
-      <button class="match-tab ${S.gameIdx===0?'active':''}" data-a="game" data-gi="0">1試合目</button>
-      <button class="match-tab ${S.gameIdx===1?'active':''}" data-a="game" data-gi="1">2試合目</button>
-      ${S.isMgr ? `<button class="match-tab" data-a="cp12">1試合目→2試合目コピー</button>` : ``}
-    </div>
-  `;
+const gameBar = `
+ <div class="match-tabs" data-a="gamebar">
+  <button class="match-tab ${S.gameIdx===0?'active':''}" data-a="game" data-gi="0">1試合目</button>
+  <button class="match-tab ${S.gameIdx===1?'active':''}" data-a="game" data-gi="1">2試合目</button>
+  ${S.isMgr ? `<button class="match-tab" data-a="cp12">1試合目→2試合目コピー</button>` : ``}
+ </div>
+ `;
 
   if (S.group === 'pennant') {
     const tabNames = ['現役戦','OB戦','混合戦'];
@@ -1469,19 +1512,22 @@ function renderStats() {
         <th style="min-width:90px">進捗</th>
       </tr></thead>
       <tbody>
-        ${pls.map(p=>{
-          const pd=pts[p.id]||{total:0,detail:[]};
-          const pct=Math.round(Math.min(100,pd.total/maxP*100));
-          return `<tr>
-            <td>${esc(p.disp)}</td>
-            ${pd.detail.map(d=>`<td style="text-align:center;color:${d.pts>0?'#81c784':'#444'}">${d.pts>0?d.pts.toFixed(1):'-'}</td>`).join('')}
-            <td style="text-align:center;font-weight:700;color:${pd.total>0?'#81c784':'#444'}">${pd.total.toFixed(1)}</td>
-            <td>
-              <div class="bar-bg"><div class="bar-fg" style="width:${pct}%"></div></div>
-              <div style="font-size:9px;color:#444;text-align:right;margin-top:2px">${pct}%</div>
-            </td>
-          </tr>`;
-        }).join('')}
+       ${pls.map(p=>{
+  const d = pts[p.id] || {total:0, detail:[]};
+
+  const pct = Math.round(Math.min(100, d.total / maxP * 100));
+
+  return `
+  <tr>
+    <td>${esc(p.disp)}</td>
+    ${d.detail.map(x=>`<td style="text-align:center;color:${x.pts>0?'#81c784':'#444'}">${x.pts>0?x.pts.toFixed(1):'-'}</td>`).join('')}
+    <td style="text-align:center;font-weight:700;color:${d.total>0?'#81c784':'#444'}">${d.total.toFixed(1)}</td>
+    <td>
+      <div class="bar-bg"><div class="bar-fg" style="width:${pct}%"></div></div>
+      <div style="font-size:9px;color:#444;text-align:right;margin-top:2px">${pct}%</div>
+    </td>
+  </tr>`;
+}).join('')}
       </tbody>
     </table>`;
 }
@@ -1561,6 +1607,53 @@ document.addEventListener('mousemove',e=>{ if(mdown&&drag) moveDrag(e.clientX,e.
 document.addEventListener('mouseup',  e=>{ if(mdown&&drag){ mdown=false; endDrag(e.clientX,e.clientY); } });
 
 /* ================================================================
+ SWIPE: 試合(1試合目/2試合目) 切替（スマホ）
+  - 上部の試合タブ領域（data-a="gamebar"）上で左右スワイプ
+================================================================ */
+let _gSwipe = null; // {x,y,dx,dy,active}
+
+document.addEventListener('touchstart', (e) => {
+  const t = e.target;
+  if (!t.closest('[data-a="gamebar"]')) return;   // 試合タブ上だけ有効
+  const p = e.touches[0];
+  _gSwipe = { x: p.clientX, y: p.clientY, dx: 0, dy: 0, active: true };
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  if (!_gSwipe?.active) return;
+  const p = e.touches[0];
+  _gSwipe.dx = p.clientX - _gSwipe.x;
+  _gSwipe.dy = p.clientY - _gSwipe.y;
+
+  // 横スワイプが優勢なら縦スクロール抑止（タブ上だけ）
+  if (Math.abs(_gSwipe.dx) > 10 && Math.abs(_gSwipe.dx) > Math.abs(_gSwipe.dy)) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', () => {
+  if (!_gSwipe?.active) return;
+
+  const dx = _gSwipe.dx || 0;
+  const dy = _gSwipe.dy || 0;
+  _gSwipe.active = false;
+
+  // しきい値：横60px以上 かつ 縦ブレが少ない
+  if (Math.abs(dx) < 60) return;
+  if (Math.abs(dx) < Math.abs(dy) * 1.2) return;
+
+  // 左スワイプ＝次の試合、右スワイプ＝前の試合
+  let next = S.gameIdx;
+  if (dx < 0) next = Math.min(1, S.gameIdx + 1);
+  else        next = Math.max(0, S.gameIdx - 1);
+
+  if (next !== S.gameIdx) {
+    S.gameIdx = next;
+    renderContent();
+  }
+}, { passive: true });
+
+/* ================================================================
  PRINT (A4 x 2 pages)
  1枚目: 1試合目（左=集計/参加者 右=ピッチ）
  2枚目: 2試合目（左=同じ集計/参加者を再掲 右=ピッチ）
@@ -1583,37 +1676,42 @@ function pr_benchLine(m){
 
 // ===== 左カラム：集計（出席者のみ） =====
 function pr_pointsHtml(){
-  const pts  = calcPoints();
+  const pts = calcPoints();
   const pres = sortedPlayers().filter(p=>p.present);
-  const bl   = baseLen(); // senior=1 / pennant=3
+  const bl = baseLen();
 
   if(!pres.length){
     return `<div class="pnote">出席者が未設定のため集計なし</div>`;
   }
 
   const rows = pres.map(p=>{
-    const d  = pts[p.id] || {total:0, detail:[]};
+    const d  = pts[p.id] || { total:0, gk:0, field:0, detail:[] };
     const g1 = d.detail.slice(0, bl).reduce((s,x)=>s+(x.pts||0),0);
     const g2 = d.detail.slice(bl, bl*2).reduce((s,x)=>s+(x.pts||0),0);
     const tt = d.total || 0;
+    const gk = d.gk || 0;
+
     return `
-      <tr>
-        <td class="pn">${esc(p.disp)}</td>
-        <td class="pc">${g1 ? g1.toFixed(1) : '-'}</td>
-        <td class="pc">${g2 ? g2.toFixed(1) : '-'}</td>
-        <td class="pt">${tt.toFixed(1)}</td>
-      </tr>`;
+<tr>
+  <td class="pn">${esc(p.disp)}</td>
+  <td class="pc">${g1 ? g1.toFixed(1) : '-'}</td>
+  <td class="pc">${g2 ? g2.toFixed(1) : '-'}</td>
+  <td class="pc">${gk ? gk.toFixed(1) : '-'}</td>
+  <td class="pt">${tt.toFixed(1)}</td>
+</tr>`;
   }).join('');
 
   return `
-    <div class="pttl">📊 出場ポイント</div>
-    <table class="st">
-      <thead>
-        <tr><th>選手</th><th>1試合</th><th>2試合</th><th>計</th></tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="pnote">※出席者のみ表示</div>`;
+<div class="pttl">📊 出場ポイント</div>
+<table class="st">
+  <thead>
+    <tr>
+      <th>選手</th><th>1試合</th><th>2試合</th><th>GK</th><th>計</th>
+    </tr>
+  </thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="pnote">※出席者のみ表示</div>`;
 }
 
 // ===== 右カラム：ピッチ描画（小型） =====
@@ -1716,7 +1814,7 @@ function doPrint(){
     .st{ width:100%; border-collapse:collapse; table-layout:fixed; }
     .st th,.st td{ border:1px solid #bbb; padding:3px 4px; font-size:9px; }
     .st th{ background:#f3f3f3; }
-    .st td.pn{ width:46%; font-weight:700; }
+    .st td.pn{ width:40%; font-weight:700; }
     .st td.pc{ width:16%; text-align:center; }
     .st td.pt{ width:16%; text-align:center; font-weight:700; }
     .pnote{ margin-top:6px; font-size:9px; color:#666; }

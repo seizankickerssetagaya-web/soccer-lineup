@@ -103,18 +103,36 @@ input:focus{border-color:var(--accent)}
   padding:5px 7px;white-space:nowrap;flex-shrink:0}
 
 /* Main */
-#main{flex:1;display:flex;min-height:0;overflow:hidden}
+#main{
+  flex:1;
+  display:flex;
+  min-height:0;   /* ✅ これ重要（すでにOK） */
+  overflow:hidden;
+}
 
 /* Sidebar */
-#sb{width:var(--sw);background:var(--sidebar);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+#sb{
+  width:var(--sw);
+  background:var(--sidebar);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  flex-shrink:0;
+  overflow:hidden;
+  height:100%;
+  min-height:0;   /* ✅ これを追加（超重要） */
+}
 .sb-head{padding:8px;background:rgba(0,0,0,.25);border-bottom:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700}
 .sb-cnt{color:var(--dim);font-size:10px;font-weight:400}
 .sb-tools{padding:5px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:3px}
 .sbt{background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);font-size:11px;
   padding:5px 7px;text-align:left;border-radius:5px}
-.pl-list{flex:1;overflow-y:auto;padding:5px}
+.pl-list{
+  flex:1;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
 .pl-item{display:flex;align-items:center;gap:5px;padding:6px 7px;border-radius:7px;
   margin-bottom:3px;border:1px solid transparent;cursor:grab;
   user-select:none;-webkit-user-select:none;touch-action:none;
@@ -139,7 +157,16 @@ input:focus{border-color:var(--accent)}
 .pl-cb{width:14px;height:14px;cursor:pointer;flex-shrink:0;accent-color:#4caf50}
 .pl-name{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pl-pts{font-size:10px;color:var(--accent);font-weight:700}
+/* ▼ スマホだけ少し小さく */
+@media(max-width:480px){
+  .pl-item{
+    padding:4px 5px;   /* 少し小さく */
+  }
 
+  .pl-name{
+    font-size:11px;    /* 12 → 11 */
+  }
+}
 /* Content */
 #content{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px;
   display:flex;flex-direction:column;gap:12px}
@@ -319,6 +346,9 @@ input:focus{border-color:var(--accent)}
 .st-tbl th{background:#111;padding:6px 8px;text-align:left;font-size:11px;
   color:var(--dim);position:sticky;top:0}
 .st-tbl td{padding:5px 8px;border-bottom:1px solid #1a1a2a;vertical-align:middle}
+.st-tbl td{
+  text-align:center;
+}
 .bar-bg{background:#222;border-radius:4px;height:7px;overflow:hidden}
 .bar-fg{height:100%;background:linear-gradient(to right,var(--green2),#81c784);
   border-radius:4px;transition:width .4s}
@@ -374,8 +404,8 @@ input:focus{border-color:var(--accent)}
 /* Mobile */
 @media(max-width:480px){
   :root{--sw:115px}
-  .pdot{width:28px;height:28px}
-  .p-nm{font-size:7.5px;max-width:24px}
+  .pdot{width:32px;height:32px}
+  .p-nm{font-size:9px;max-width:24px}
 }
 
 /* ペナントタブ */
@@ -854,8 +884,8 @@ function calcAge(dobStr){
   const t = new Date();
   let age = t.getFullYear() - d.getFullYear();
   const m = t.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age--;
-  return age;
+if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age--;
+return age;
 }
 
 // 既定名簿（ログイン後、名簿が空のときだけ使う）
@@ -1082,7 +1112,12 @@ function toArr(v) {
 const UID  = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const YM   = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
 const fmYM = ym => { const [y,m]=ym.split('-'); return `${y}年${parseInt(m)}月`; };
-const esc  = s => String(s).replace(/&/g,'&amp;').replace(/</g,'<;').replace(/>/g,'>{;').replace(/"/g,'&quot;');
+const esc = s => String(s)
+  .replace(/&/g,'&amp;')
+  .replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;');
+
 // ニックネーム優先で表示名を返す
 const dispName = id => {
   const d = S.roster[id];
@@ -1121,17 +1156,26 @@ function calcPoints() {
     const q2gk = q2pos.gk || null;
 
     Object.keys(S.roster).forEach(id => {
-      const p1 = q1s.has(id) ? 0.5 : 0;
-      const p2 = q2s.has(id) ? 0.5 : 0;
-      const p  = p1 + p2;
+     const p1 = q1s.has(id) ? 0.5 : 0;
+const p2 = q2s.has(id) ? 0.5 : 0;
+const playP = p1 + p2;   // ← 名前変更
 
-      const gkP = (q1gk === id ? 0.5 : 0) + (q2gk === id ? 0.5 : 0);
-      const fieldP = p - gkP;
+const gkP = (q1gk === id ? 0.5 : 0) + (q2gk === id ? 0.5 : 0);
 
-      pts[id].detail.push({ type: m.matchType, pts: p, gk: gkP, field: fieldP });
-      pts[id].total += p;
-      pts[id].gk    += gkP;
-      pts[id].field += fieldP;
+// ✅ GKを除いたフィールドポイント
+const fieldP = playP - gkP;
+
+pts[id].detail.push({
+  type: m.matchType,
+  pts: fieldP,   // ← ここが重要（GK除外）
+  gk: gkP,
+  field: fieldP
+});
+
+// ✅ 合計もGK除外
+pts[id].total += fieldP;
+pts[id].gk += gkP;
+pts[id].field += fieldP;
     });
   });
 
@@ -1143,19 +1187,21 @@ function sortedPlayers() {
   return Object.entries(S.roster)
     .map(([id,d])=>({
       id,
-      name: d.name || '',
-      nick: d.nick || '',
       disp: dispName(id),
       present: !!S.attend[id],
-      pt: (pts[id] && pts[id].total) ? pts[id].total : 0
+      pt: pts[id]?.total || 0
     }))
-    .sort((a,b)=>{
-      if(a.present!==b.present) return b.present?1:-1;
-      if(a.present && b.present){
-        if(a.pt !== b.pt) return a.pt - b.pt; // 出席者はポイント少ない順
-      }
-      return a.disp.localeCompare(b.disp,'ja');
-    });
+.sort((a,b)=>{
+  if (a.present !== b.present) return b.present ? 1 : -1;
+
+  // ★ 出席者の中では「0pt」を最優先
+  const aZero = (a.pt === 0);
+  const bZero = (b.pt === 0);
+  if (aZero !== bZero) return aZero ? -1 : 1;
+
+  if (a.pt !== b.pt) return a.pt - b.pt;
+  return a.disp.localeCompare(b.disp,'ja');
+});
 }
 
 /* ================================================================
@@ -1456,7 +1502,7 @@ const gameBar = `
  <div class="match-tabs" data-a="gamebar">
   <button class="match-tab ${S.gameIdx===0?'active':''}" data-a="game" data-gi="0">1試合目</button>
   <button class="match-tab ${S.gameIdx===1?'active':''}" data-a="game" data-gi="1">2試合目</button>
-  ${S.isMgr ? `<button class="match-tab" data-a="cp12">1試合目→2試合目コピー</button>` : ``}
+  ${S.isMgr ? `<button class="match-tab" data-a="cp12">1→2コピー</button>` : ``}
  </div>
  `;
 
@@ -1580,38 +1626,48 @@ function renderBench(bench,mi) {
    RENDER — STATS
 ================================================================ */
 function renderStats() {
-  const pts=calcPoints(), pls=sortedPlayers();
-  const maxP=S.group==='senior'?1.0:3.0;
-  const types=S.matches.map(m=>m.matchType);
-  if(!pls.length){ document.getElementById('st-body').innerHTML='<div style="color:#444;font-size:12px">選手データなし</div>'; return; }
-  document.getElementById('st-body').innerHTML=`
-    <table class="st-tbl">
-      <thead><tr>
-        <th>選手名</th>
-        ${types.map(t=>`<th>${esc(t)}</th>`).join('')}
+  const pts = calcPoints();
+  const pls = sortedPlayers();
+
+  if(!pls.length){
+    document.getElementById('st-body').innerHTML =
+      '<div style="color:#444;font-size:12px">選手データなし</div>';
+    return;
+  }
+
+  document.getElementById('st-body').innerHTML = `
+  <table class="st-tbl">
+    <thead>
+      <tr>
+        <th>選手</th>
+        <th>1試合</th>
+        <th>2試合</th>
         <th>合計</th>
-        <th style="min-width:90px">進捗</th>
-      </tr></thead>
-      <tbody>
-       ${pls.map(p=>{
-  const d = pts[p.id] || {total:0, detail:[]};
+        <th>GK</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${pls.map(p=>{
+        const d = pts[p.id] || { total:0, gk:0, detail:[] };
+        const half = Math.floor(d.detail.length / 2);
 
-  const pct = Math.round(Math.min(100, d.total / maxP * 100));
+        const g1 = d.detail.slice(0, half).reduce((s,x)=> s + (x.field || 0), 0);
+        const g2 = d.detail.slice(half).reduce((s,x)=> s + (x.field || 0), 0);
 
-  return `
-  <tr>
-    <td>${esc(p.disp)}</td>
-    ${d.detail.map(x=>`<td style="text-align:center;color:${x.pts>0?'#81c784':'#444'}">${x.pts>0?x.pts.toFixed(1):'-'}</td>`).join('')}
-    <td style="text-align:center;font-weight:700;color:${d.total>0?'#81c784':'#444'}">${d.total.toFixed(1)}</td>
-    <td>
-      <div class="bar-bg"><div class="bar-fg" style="width:${pct}%"></div></div>
-      <div style="font-size:9px;color:#444;text-align:right;margin-top:2px">${pct}%</div>
-    </td>
-  </tr>`;
-}).join('')}
-      </tbody>
-    </table>`;
+        return `
+        <tr>
+          <td>${esc(p.disp)}</td>
+          <td>${g1 ? g1.toFixed(1) : '-'}</td>
+          <td>${g2 ? g2.toFixed(1) : '-'}</td>
+          <td>${d.total ? d.total.toFixed(1) : '-'}</td>
+          <td>${d.gk ? d.gk.toFixed(1) : '-'}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>
+  `;
 }
+
 
 /* ================================================================
    DRAG & DROP
@@ -1718,8 +1774,10 @@ document.addEventListener('touchmove', (e) => {
 document.addEventListener('touchend', () => {
   if (!_gSwipe || !_gSwipe.active) return;
 
-  const dx = _gSwipe.dx || 0;
-  const dy = _gSwipe.dy || 0;
+
+const dx = _gSwipe.dx || 0;
+const dy = _gSwipe.dy || 0;
+
   _gSwipe.active = false;
 
   // しきい値：横60px以上 かつ 縦ブレが少ない
@@ -2029,7 +2087,29 @@ function openFormModal(mi, q, curForm){
 /* ================================================================
    EVENT DELEGATION
 ================================================================ */
+/* 出席チェック（checkbox）の変更を拾う */
+document.addEventListener('change', async (e) => {
+  const t = e.target;
 
+  // サイドバーの出席チェック
+  if (t.classList.contains('pl-cb')) {
+    const pid = t.dataset.pid;
+    await setAttend(pid, t.checked);
+    renderSB();          // 並び替えを即反映
+    if (S.statsOpen) renderStats();
+    return;
+  }
+
+  // 名簿モーダルの出席チェック
+  if (t.classList.contains('roster-cb')) {
+    const pid = t.dataset.pid;
+    await setAttend(pid, t.checked);
+    renderRoster();      // モーダル側の見た目も更新
+    renderSB();          // 左リスト並び替えを即反映
+    if (S.statsOpen) renderStats();
+    return;
+  }
+});
 document.addEventListener('click', async e => {
   const t = e.target;
 

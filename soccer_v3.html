@@ -388,6 +388,8 @@ input:focus{border-color:var(--accent)}
 }
 .mform-btn:hover{background:rgba(255,255,255,.12);border-color:var(--accent)}
 .mform-btn.sel{border-color:var(--accent);background:rgba(255,193,7,.12)}
+
+.mc-body{ -webkit-overflow-scrolling: touch; }
 </style>
 </head>
 <body>
@@ -1019,7 +1021,7 @@ function toArr(v) {
 const UID  = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const YM   = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
 const fmYM = ym => { const [y,m]=ym.split('-'); return `${y}年${parseInt(m)}月`; };
-const esc  = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const esc  = s => String(s).replace(/&/g,'&amp;').replace(/</g,'<;').replace(/>/g,'>{;').replace(/"/g,'&quot;');
 // ニックネーム優先で表示名を返す
 const dispName = id => {
   const d = S.roster[id];
@@ -1116,7 +1118,7 @@ async function ensurePw() {
 async function loadMonths() {
   const d = await fbGet(tPath());
   const ms = [];
-  if (d) Object.keys(d).forEach(k=>{ if(/^\d{4}-\d{2}$/.test(k)) ms.push(k); });
+  if (d) Object.keys(d).forEach(k=>{ if(/^|d{4}-|d{2}|/.test(k)) ms.push(k); });
   ms.sort();
   const cm = YM();
   if (!ms.includes(cm)) ms.push(cm);
@@ -1596,14 +1598,6 @@ async function endDrag(x,y){
 }
 
 /* Touch */
-document.addEventListener('touchstart',e=>{
-  if(!S.isMgr) return;
-  const it=e.target.closest('.pl-item');
-  if(!it||e.target.closest('.pl-cb')) return;
-  const t=e.touches[0];
-  startDrag(it.dataset.pid,it.dataset.name,t.clientX,t.clientY);
-  e.preventDefault();
-},{passive:false});
 document.addEventListener('touchmove',e=>{
   if(!drag) return;
   const t=e.touches[0]; moveDrag(t.clientX,t.clientY); e.preventDefault();
@@ -1615,14 +1609,23 @@ document.addEventListener('touchend',e=>{
 
 /* Mouse */
 let mdown=false;
-document.addEventListener('mousedown',e=>{
+document.addEventListener('mousedown', e=>{
   if(!S.isMgr) return;
-  const it=e.target.closest('.pl-item');
-  if(!it||e.target.closest('.pl-cb')) return;
-  mdown=true; startDrag(it.dataset.pid,it.dataset.name,e.clientX,e.clientY); e.preventDefault();
+  const it = e.target.closest('.pl-item');
+  if(!it || e.target.closest('.pl-cb')) return;
+  mdown = true;
+  startDrag(it.dataset.pid, it.dataset.name, e.clientX, e.clientY);
+  e.preventDefault();
 });
-document.addEventListener('mousemove',e=>{ if(mdown&&drag) moveDrag(e.clientX,e.clientY); });
-document.addEventListener('mouseup',  e=>{ if(mdown&&drag){ mdown=false; endDrag(e.clientX,e.clientY); } });
+document.addEventListener('mousemove', e=>{
+  if(mdown && drag) moveDrag(e.clientX, e.clientY);
+});
+document.addEventListener('mouseup', e=>{
+  if(mdown && drag){
+    mdown = false;
+    endDrag(e.clientX, e.clientY);
+  }
+});
 
 /* ================================================================
  SWIPE: 試合(1試合目/2試合目) 切替（スマホ）
@@ -1632,25 +1635,31 @@ let _gSwipe = null; // {x,y,dx,dy,active}
 
 document.addEventListener('touchstart', (e) => {
   const t = e.target;
-  if (!t.closest('[data-a="gamebar"]')) return;   // 試合タブ上だけ有効
+  if (!t.closest('[data-a="gamebar"]')) return; // 試合タブ上だけ有効
   const p = e.touches[0];
   _gSwipe = { x: p.clientX, y: p.clientY, dx: 0, dy: 0, active: true };
 }, { passive: true });
 
 document.addEventListener('touchmove', (e) => {
-  if (!_gSwipe?.active) return;
+  if (!_gSwipe || !_gSwipe.active) return;
+
   const p = e.touches[0];
   _gSwipe.dx = p.clientX - _gSwipe.x;
   _gSwipe.dy = p.clientY - _gSwipe.y;
 
-  // 横スワイプが優勢なら縦スクロール抑止（タブ上だけ）
-  if (Math.abs(_gSwipe.dx) > 10 && Math.abs(_gSwipe.dx) > Math.abs(_gSwipe.dy)) {
+  // タブ上だけ、横スワイプ優勢のときだけスクロール抑止
+  const target = e.target;
+  if (
+    target.closest('[data-a="gamebar"]') &&
+    Math.abs(_gSwipe.dx) > 10 &&
+    Math.abs(_gSwipe.dx) > Math.abs(_gSwipe.dy)
+  ) {
     e.preventDefault();
   }
 }, { passive: false });
 
 document.addEventListener('touchend', () => {
-  if (!_gSwipe?.active) return;
+  if (!_gSwipe || !_gSwipe.active) return;
 
   const dx = _gSwipe.dx || 0;
   const dy = _gSwipe.dy || 0;

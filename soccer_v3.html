@@ -119,7 +119,22 @@ input:focus{border-color:var(--accent)}
   margin-bottom:3px;border:1px solid transparent;cursor:grab;
   user-select:none;-webkit-user-select:none;touch-action:none;
   background:rgba(255,255,255,.04);transition:background .12s}
-.pl-item.present{background:rgba(46,125,50,.22);border-color:rgba(76,175,80,.35)}
+.pl-item.present{
+  background:linear-gradient(90deg, rgba(76,175,80,.35), rgba(46,125,50,.25));
+  border:2px solid #66bb6a;
+}
+.pl-item.present::before{
+  content:"●";
+  color:#4caf50;
+  margin-right:4px;
+  font-size:10px;
+}
+
+.pl-item.present .pl-name{
+  font-weight:700;
+  color:#c8e6c9;
+}
+``
 .pl-item.absent{opacity:.42}
 .pl-item.dragging{opacity:.15;cursor:grabbing}
 .pl-cb{width:14px;height:14px;cursor:pointer;flex-shrink:0;accent-color:#4caf50}
@@ -274,6 +289,54 @@ input:focus{border-color:var(--accent)}
   cursor:pointer;background:var(--border);color:var(--fg-dim);transition:all .15s;font-family:inherit}
 .match-tab.active{background:var(--accent);color:#fff}
 .match-tab:hover:not(.active){background:var(--accent-dim,#4a9a6a);color:#fff}
+/* ===== フォーメーションselectのドロップダウンが切れる問題の対策 ===== */
+.f-row{
+  position: relative;
+  z-index: 20;
+}
+
+.f-row select{
+  position: relative;
+  z-index: 21;
+}
+
+/* 親の overflow によるクリップを回避 */
+.mc-body,
+.quarter{
+  overflow: visible;
+}
+/* ===== シニア監督：フォーメーション選択（モーダル） ===== */
+.fbtn{
+  width:100%;
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:6px 8px;
+  font-size:10px;
+  text-align:center;
+}
+.fbtn:active{filter:brightness(.85)}
+
+.mform-list{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  max-height:55vh;
+  overflow-y:auto;
+}
+
+.mform-btn{
+  background:rgba(255,255,255,.06);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 12px;
+  color:var(--text);
+  font-size:13px;
+  text-align:left;
+}
+.mform-btn:hover{background:rgba(255,255,255,.12);border-color:var(--accent)}
+.mform-btn.sel{border-color:var(--accent);background:rgba(255,193,7,.12)}
 </style>
 </head>
 <body>
@@ -349,6 +412,7 @@ input:focus{border-color:var(--accent)}
     <select id="mon-sel" style="max-width:115px;font-size:12px"></select>
     <button class="h-btn" id="btn-addmon">＋月</button>
     <button class="h-btn" id="btn-stats">📊</button>
+    <button class="h-btn" id="btn-print">🖨</button>
     <button class="h-btn" id="btn-menu">⚙</button>
     <button class="h-btn" id="btn-out" style="background:rgba(244,67,54,.2)">⏻</button>
   </div>
@@ -385,6 +449,15 @@ input:focus{border-color:var(--accent)}
     <div class="mpl-list" id="m-pos-list"></div>
     <button class="m-clear" id="m-pos-clear">このポジションをクリア</button>
     <button class="m-cancel" id="m-pos-cancel">キャンセル</button>
+  </div>
+</div>
+<!-- Modal: Formation (Senior Manager only) -->
+<div class="mbg" id="m-form">
+  <div class="mbox" style="max-width:380px">
+    <div class="m-title">📋 フォーメーション選択</div>
+    <div class="m-note">※ シニア監督のみモーダルで選択します</div>
+    <div class="mform-list" id="m-form-list"></div>
+    <button class="m-cancel" id="m-form-cancel">閉じる</button>
   </div>
 </div>
 
@@ -697,53 +770,140 @@ const DEF_PW = {
 };
 
 const DEF_FORM = '3-1-3-1';
+
 const FORMS = {
-  '3-3-2':  [
-    {id:'gk', lb:'GK',x:50,y:88},
+  /* ===== 9人制 ===== */
+  '3-3-2': [
+    {id:'gk',lb:'GK',x:50,y:88},
     {id:'d1',lb:'DF',x:20,y:73},{id:'d2',lb:'DF',x:50,y:73},{id:'d3',lb:'DF',x:80,y:73},
     {id:'m1',lb:'MF',x:20,y:52},{id:'m2',lb:'MF',x:50,y:52},{id:'m3',lb:'MF',x:80,y:52},
     {id:'f1',lb:'FW',x:35,y:23},{id:'f2',lb:'FW',x:65,y:23},
   ],
-  '3-2-3':  [
+  '3-2-3': [
     {id:'gk',lb:'GK',x:50,y:88},
     {id:'d1',lb:'DF',x:20,y:73},{id:'d2',lb:'DF',x:50,y:73},{id:'d3',lb:'DF',x:80,y:73},
     {id:'m1',lb:'MF',x:35,y:53},{id:'m2',lb:'MF',x:65,y:53},
     {id:'f1',lb:'FW',x:20,y:23},{id:'f2',lb:'FW',x:50,y:23},{id:'f3',lb:'FW',x:80,y:23},
   ],
-  '4-3-1':  [
+  '4-3-1': [
     {id:'gk',lb:'GK',x:50,y:88},
     {id:'d1',lb:'DF',x:15,y:73},{id:'d2',lb:'DF',x:38,y:73},{id:'d3',lb:'DF',x:62,y:73},{id:'d4',lb:'DF',x:85,y:73},
     {id:'m1',lb:'MF',x:20,y:52},{id:'m2',lb:'MF',x:50,y:52},{id:'m3',lb:'MF',x:80,y:52},
     {id:'f1',lb:'FW',x:50,y:23},
   ],
-  '4-2-2':  [
+  '4-2-2': [
     {id:'gk',lb:'GK',x:50,y:88},
     {id:'d1',lb:'DF',x:15,y:73},{id:'d2',lb:'DF',x:38,y:73},{id:'d3',lb:'DF',x:62,y:73},{id:'d4',lb:'DF',x:85,y:73},
     {id:'m1',lb:'MF',x:35,y:53},{id:'m2',lb:'MF',x:65,y:53},
     {id:'f1',lb:'FW',x:35,y:23},{id:'f2',lb:'FW',x:65,y:23},
   ],
-  '2-4-2':  [
+  '2-4-2': [
     {id:'gk',lb:'GK',x:50,y:88},
     {id:'d1',lb:'DF',x:35,y:73},{id:'d2',lb:'DF',x:65,y:73},
     {id:'m1',lb:'MF',x:15,y:53},{id:'m2',lb:'MF',x:38,y:53},{id:'m3',lb:'MF',x:62,y:53},{id:'m4',lb:'MF',x:85,y:53},
     {id:'f1',lb:'FW',x:35,y:23},{id:'f2',lb:'FW',x:65,y:23},
   ],
-  '3-3-1-1':[
+  '3-3-1-1': [
     {id:'gk',lb:'GK',x:50,y:88},
     {id:'d1',lb:'DF',x:20,y:73},{id:'d2',lb:'DF',x:50,y:73},{id:'d3',lb:'DF',x:80,y:73},
     {id:'m1',lb:'MF',x:20,y:56},{id:'m2',lb:'MF',x:50,y:56},{id:'m3',lb:'MF',x:80,y:56},
     {id:'m4',lb:'MF',x:50,y:38},
     {id:'f1',lb:'FW',x:50,y:18},
   ],
-  '3-1-3-1':[
+  '3-1-3-1': [
     {id:'gk',lb:'GK',x:50,y:88},
     {id:'d1',lb:'DF',x:20,y:73},{id:'d2',lb:'DF',x:50,y:73},{id:'d3',lb:'DF',x:80,y:73},
     {id:'m1',lb:'MF',x:50,y:58},
     {id:'m2',lb:'MF',x:20,y:40},{id:'m3',lb:'MF',x:50,y:40},{id:'m4',lb:'MF',x:80,y:40},
     {id:'f1',lb:'FW',x:50,y:18},
   ],
-};
 
+  /* ===== 10人制（シニア用） ===== */
+  '3-2-3-1': [
+    {id:'gk',lb:'GK',x:50,y:88},
+    {id:'d1',lb:'DF',x:20,y:73},{id:'d2',lb:'DF',x:50,y:73},{id:'d3',lb:'DF',x:80,y:73},
+    {id:'m1',lb:'MF',x:35,y:56},{id:'m2',lb:'MF',x:65,y:56},
+    {id:'m3',lb:'MF',x:20,y:38},{id:'m4',lb:'MF',x:50,y:38},{id:'m5',lb:'MF',x:80,y:38},
+    {id:'f1',lb:'FW',x:50,y:18},
+  ],
+  '4-3-2': [
+    {id:'gk',lb:'GK',x:50,y:88},
+    {id:'d1',lb:'DF',x:15,y:73},{id:'d2',lb:'DF',x:38,y:73},{id:'d3',lb:'DF',x:62,y:73},{id:'d4',lb:'DF',x:85,y:73},
+    {id:'m1',lb:'MF',x:20,y:52},{id:'m2',lb:'MF',x:50,y:52},{id:'m3',lb:'MF',x:80,y:52},
+    {id:'f1',lb:'FW',x:35,y:23},{id:'f2',lb:'FW',x:65,y:23},
+  ],
+'3-4-2': [
+    {id:'gk',lb:'GK',x:50,y:88},
+    {id:'d1',lb:'DF',x:20,y:73},{id:'d2',lb:'DF',x:50,y:73},{id:'d3',lb:'DF',x:80,y:73},
+    {id:'m1',lb:'MF',x:15,y:52},{id:'m2',lb:'MF',x:38,y:52},{id:'m3',lb:'MF',x:62,y:52},{id:'m4',lb:'MF',x:85,y:52},
+    {id:'f1',lb:'FW',x:35,y:23},{id:'f2',lb:'FW',x:65,y:23},
+  ],
+
+  '3-3-3': [
+    {id:'gk',lb:'GK',x:50,y:88},
+    {id:'d1',lb:'DF',x:20,y:73},{id:'d2',lb:'DF',x:50,y:73},{id:'d3',lb:'DF',x:80,y:73},
+    {id:'m1',lb:'MF',x:20,y:52},{id:'m2',lb:'MF',x:50,y:52},{id:'m3',lb:'MF',x:80,y:52},
+    {id:'f1',lb:'FW',x:20,y:23},{id:'f2',lb:'FW',x:50,y:23},{id:'f3',lb:'FW',x:80,y:23},
+  ],
+
+  '4-4-1': [
+    {id:'gk',lb:'GK',x:50,y:88},
+    {id:'d1',lb:'DF',x:15,y:73},{id:'d2',lb:'DF',x:38,y:73},{id:'d3',lb:'DF',x:62,y:73},{id:'d4',lb:'DF',x:85,y:73},
+    {id:'m1',lb:'MF',x:15,y:52},{id:'m2',lb:'MF',x:38,y:52},{id:'m3',lb:'MF',x:62,y:52},{id:'m4',lb:'MF',x:85,y:52},
+    {id:'f1',lb:'FW',x:50,y:23},
+  ],
+
+  '4-2-3': [
+    {id:'gk',lb:'GK',x:50,y:88},
+    {id:'d1',lb:'DF',x:15,y:73},{id:'d2',lb:'DF',x:38,y:73},{id:'d3',lb:'DF',x:62,y:73},{id:'d4',lb:'DF',x:85,y:73},
+    {id:'m1',lb:'MF',x:35,y:56},{id:'m2',lb:'MF',x:65,y:56},
+    {id:'m3',lb:'MF',x:20,y:38},{id:'m4',lb:'MF',x:50,y:38},{id:'m5',lb:'MF',x:80,y:38},
+  ],
+
+  '3-5-1': [
+    {id:'gk',lb:'GK',x:50,y:88},
+    {id:'d1',lb:'DF',x:20,y:73},{id:'d2',lb:'DF',x:50,y:73},{id:'d3',lb:'DF',x:80,y:73},
+    {id:'m1',lb:'MF',x:10,y:52},{id:'m2',lb:'MF',x:30,y:52},{id:'m3',lb:'MF',x:50,y:52},{id:'m4',lb:'MF',x:70,y:52},{id:'m5',lb:'MF',x:90,y:52},
+    {id:'f1',lb:'FW',x:50,y:23},
+  ],
+
+  '3-2-4': [
+    {id:'gk',lb:'GK',x:50,y:88},
+    {id:'d1',lb:'DF',x:20,y:73},{id:'d2',lb:'DF',x:50,y:73},{id:'d3',lb:'DF',x:80,y:73},
+    {id:'m1',lb:'MF',x:35,y:52},{id:'m2',lb:'MF',x:65,y:52},
+    {id:'f1',lb:'FW',x:15,y:23},{id:'f2',lb:'FW',x:38,y:23},{id:'f3',lb:'FW',x:62,y:23},{id:'f4',lb:'FW',x:85,y:23},
+  ],
+
+  '2-4-3': [
+    {id:'gk',lb:'GK',x:50,y:88},
+    {id:'d1',lb:'DF',x:35,y:73},{id:'d2',lb:'DF',x:65,y:73},
+    {id:'m1',lb:'MF',x:15,y:52},{id:'m2',lb:'MF',x:38,y:52},{id:'m3',lb:'MF',x:62,y:52},{id:'m4',lb:'MF',x:85,y:52},
+    {id:'f1',lb:'FW',x:20,y:23},{id:'f2',lb:'FW',x:50,y:23},{id:'f3',lb:'FW',x:80,y:23},
+  ],
+
+  '5-3-1': [
+    {id:'gk',lb:'GK',x:50,y:88},
+    {id:'d1',lb:'DF',x:10,y:73},{id:'d2',lb:'DF',x:30,y:73},{id:'d3',lb:'DF',x:50,y:73},{id:'d4',lb:'DF',x:70,y:73},{id:'d5',lb:'DF',x:90,y:73},
+    {id:'m1',lb:'MF',x:20,y:52},{id:'m2',lb:'MF',x:50,y:52},{id:'m3',lb:'MF',x:80,y:52},
+    {id:'f1',lb:'FW',x:50,y:23},
+  ],
+
+  '5-2-2': [
+    {id:'gk',lb:'GK',x:50,y:88},
+    {id:'d1',lb:'DF',x:10,y:73},{id:'d2',lb:'DF',x:30,y:73},{id:'d3',lb:'DF',x:50,y:73},{id:'d4',lb:'DF',x:70,y:73},{id:'d5',lb:'DF',x:90,y:73},
+    {id:'m1',lb:'MF',x:35,y:52},{id:'m2',lb:'MF',x:65,y:52},
+    {id:'f1',lb:'FW',x:35,y:23},{id:'f2',lb:'FW',x:65,y:23},
+  ],  
+//（他の10人制もこのまま続く）
+};
+// ★10人制フォーム一覧（シニア限定で選択肢に出す）
+const TEN_FORMS = new Set([
+  '3-2-3-1','4-3-2','3-4-2','3-3-3','4-4-1','4-2-3','3-5-1','3-2-4','2-4-3','5-3-1','5-2-2'
+]);
+const isTenForm = f => TEN_FORMS.has(f);
+
+// 表示ラベル：10人制は「（10人）」付きにする
+const formLabel = f => isTenForm(f) ? `${f}（10人）` : f;
 /* ================================================================
    STATE
 ================================================================ */
@@ -847,10 +1007,32 @@ function calcPoints() {
 }
 
 function sortedPlayers() {
+  const pts = calcPoints(); // ★ 出場ポイント取得
+
   return Object.entries(S.roster)
-    .map(([id,d])=>({id, name:d.name||'', nick:d.nick||'', disp:dispName(id), present:!!S.attend[id]}))
-    .sort((a,b)=>{ if(a.present!==b.present) return b.present?1:-1; return a.disp.localeCompare(b.disp,'ja'); });
+    .map(([id,d])=>({
+      id,
+      name:d.name||'',
+      nick:d.nick||'',
+      disp:dispName(id),
+      present:!!S.attend[id],
+      pt:(pts[id]?.total)||0   // ★ ポイント追加
+    }))
+    .sort((a,b)=>{
+
+      // ① 出席者を上に
+      if(a.present!==b.present) return b.present?1:-1;
+
+      // ② 出席者同士は「ポイント少ない順」
+      if(a.present && b.present){
+        if(a.pt !== b.pt) return a.pt - b.pt;
+      }
+
+      // ③ 最後は名前順
+      return a.disp.localeCompare(b.disp,'ja');
+    });
 }
+``
 
 /* ================================================================
    AUTH
@@ -1198,11 +1380,34 @@ function renderQ(m,mi,q) {
   const form=qd.formation||DEF_FORM;
   const pos=qd.positions||{};
   const fdef=FORMS[form]||FORMS[DEF_FORM];
-  const fsel=S.isMgr
-    ?`<div class="f-row"><select data-a="form" data-mi="${mi}" data-q="${q}">
-        ${Object.keys(FORMS).map(f=>`<option value="${f}"${f===form?' selected':''}>${f}</option>`).join('')}
-       </select></div>`
-    :`<div class="f-lbl">${esc(form)}</div>`;
+const fsel = (S.isMgr && S.group === 'senior')
+  // ★ シニア監督だけ：モーダルを開くボタン
+  ? `<div class="f-row">
+       <button class="fbtn"
+         data-a="fform"
+         data-mi="${mi}"
+         data-q="${q}"
+         data-form="${form}">
+         ${esc(formLabel(form))} ▼
+       </button>
+     </div>`
+
+  // ペナント監督：従来どおりselect
+  : (S.isMgr
+      ? `<div class="f-row"><select data-a="form" data-mi="${mi}" data-q="${q}">
+          ${Object.keys(FORMS)
+            .filter(f => {
+              // ペナントは10人制を表示しない
+              if (S.group !== 'senior') return !isTenForm(f);
+              return true;
+            })
+            .map(f => `<option value="${f}"${f===form?' selected':''}>${esc(formLabel(f))}</option>`)
+            .join('')}
+         </select></div>`
+
+      // 閲覧（viewer）
+      : `<div class="f-lbl">${esc(formLabel(form))}</div>`
+    );
   const dots=fdef.map(p=>{
     const pid=pos[p.id]||null;
     const nm=pid?dispName(pid):'';
@@ -1356,154 +1561,466 @@ document.addEventListener('mousemove',e=>{ if(mdown&&drag) moveDrag(e.clientX,e.
 document.addEventListener('mouseup',  e=>{ if(mdown&&drag){ mdown=false; endDrag(e.clientX,e.clientY); } });
 
 /* ================================================================
-   EVENT DELEGATION
+ PRINT (A4 x 2 pages)
+ 1枚目: 1試合目（左=集計/参加者 右=ピッチ）
+ 2枚目: 2試合目（左=同じ集計/参加者を再掲 右=ピッチ）
 ================================================================ */
-document.addEventListener('click', async e=>{
-  const t=e.target;
-  /* --- LOGIN --- */
-  const tb=t.closest('.team-btn');
-  if(tb){ document.querySelectorAll('.team-btn').forEach(b=>b.classList.remove('sel')); tb.classList.add('sel'); S.team=tb.dataset.team; goStep(2); return; }
-  const rb=t.closest('.role-btn');
-  if(rb&&!rb.closest('.mbg')){ document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('sel')); rb.classList.add('sel'); S.group=rb.dataset.group; S.role=rb.dataset.role; S.key=`${S.team}_${S.group}`; goStep(3); return; }
-  if(t.id==='ls2-back'){ goStep(1); return; }
-  if(t.id==='ls3-back'){ goStep(2); return; }
-  if(t.id==='ls3-ok'){ await doLogin(); return; }
 
-  /* --- SIDEBAR TOOLS --- */
-  const a=t.closest('[data-a]')?.dataset?.a;
-// ★ 試合切替（1試合目 / 2試合目）
-if (a === 'game') {
-  const el = t.closest('[data-a]');
-  const gi = +el.dataset.gi;     // 0 or 1
-  S.gameIdx = gi;
-  renderContent();
-  return;
+// ===== 参加者（出席者） =====
+function pr_presentArr(){
+  return sortedPlayers().filter(p=>p.present).map(p=>p.disp);
+}
+function pr_presentLine(){
+  const a = pr_presentArr();
+  return a.length ? esc(a.join('、')) : '（未設定）';
 }
 
-// ★ ペナントのタブ切替（現役 / OB / 混合）
-if (a === 'ptab') {
-  const el = t.closest('[data-a]');
-  const ti = +el.dataset.ti;     // 0..2
-  S.pennantTab = ti;
-  renderContent();
-  return;
+// ===== 控え =====
+function pr_benchLine(m){
+  const b = (m?.bench || []).filter(pid=>S.roster[pid]).map(pid=>dispName(pid));
+  return b.length ? esc(b.join('、')) : '－';
 }
 
-// ★ 1試合目 → 2試合目 コピー
-if (a === 'cp12') {
-  await copyGame1toGame2();
-  return;
-}
-  if(a==='roster'){ openM('m-roster'); renderRoster(); return; }
-  if(a==='rpos')  { doResetPos(); return; }  // Note: typo fix - was resetPos, correct name used here
+// ===== 左カラム：集計（出席者のみ） =====
+function pr_pointsHtml(){
+  const pts  = calcPoints();
+  const pres = sortedPlayers().filter(p=>p.present);
+  const bl   = baseLen(); // senior=1 / pennant=3
 
-  /* --- MATCH CARD --- */
-  if(a==='cpq'){ const mi=+t.closest('[data-a]').dataset.mi; await copyQ1toQ2(mi); renderContent(); return; }
-  if(a==='cpos'){
-    if(!S.isMgr) return;
-    const el=t.closest('[data-a]');
-    openPosModal(+el.dataset.mi, el.dataset.q, el.dataset.pos, el.dataset.pid||null);
+  if(!pres.length){
+    return `<div class="pnote">出席者が未設定のため集計なし</div>`;
+  }
+
+  const rows = pres.map(p=>{
+    const d  = pts[p.id] || {total:0, detail:[]};
+    const g1 = d.detail.slice(0, bl).reduce((s,x)=>s+(x.pts||0),0);
+    const g2 = d.detail.slice(bl, bl*2).reduce((s,x)=>s+(x.pts||0),0);
+    const tt = d.total || 0;
+    return `
+      <tr>
+        <td class="pn">${esc(p.disp)}</td>
+        <td class="pc">${g1 ? g1.toFixed(1) : '-'}</td>
+        <td class="pc">${g2 ? g2.toFixed(1) : '-'}</td>
+        <td class="pt">${tt.toFixed(1)}</td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div class="pttl">📊 出場ポイント</div>
+    <table class="st">
+      <thead>
+        <tr><th>選手</th><th>1試合</th><th>2試合</th><th>計</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="pnote">※出席者のみ表示</div>`;
+}
+
+// ===== 右カラム：ピッチ描画（小型） =====
+function pr_pitchHtml(m, q){
+  const qd   = (m && m[q]) ? m[q] : {formation:DEF_FORM, positions:{}};
+  const form = qd.formation || DEF_FORM;
+  const fdef = FORMS[form] || FORMS[DEF_FORM];
+  const pos  = qd.positions || {};
+
+  const dots = fdef.map(p=>{
+    const pid = pos[p.id] || '';
+    const nm  = pid ? dispName(pid) : '';
+    const sn  = nm ? (nm.length>6 ? nm.slice(0,6)+'…' : nm) : '';
+    const gk  = (p.id === 'gk');
+
+    return `
+      <div class="pd ${pid?'occ':''} ${gk?'gk':''}" style="left:${p.x}%;top:${p.y}%;">
+        <div class="lb">${esc(p.lb)}</div>
+        <div class="nm">${esc(sn)}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="qblk">
+      <div class="qhdr">${q==='q1'?'1Q':'2Q'} <span class="form">${esc(formLabel(form))}</span></div>
+      <div class="pitchP">
+        <div class="lines"></div>
+        <div class="cc"></div>
+        <div class="ga top"></div>
+        <div class="ga bot"></div>
+        ${dots}
+      </div>
+    </div>`;
+}
+
+function pr_matchBlock(mi){
+  const m = S.matches[mi];
+  if(!m) return '';
+
+  return `
+    <div class="mblk">
+      <div class="mt">${esc(m.matchType||'')}</div>
+      <div class="grid">
+        ${pr_pitchHtml(m,'q1')}
+        ${pr_pitchHtml(m,'q2')}
+      </div>
+      <div class="bench">控え：${pr_benchLine(m)}</div>
+    </div>`;
+}
+
+// ===== 印刷（A4: 2枚固定） =====
+function doPrint(){
+  const bl = baseLen();              // senior=1 / pennant=3
+  const attend = pr_presentLine();
+  const leftPanel = `
+    <div class="att">参加：${attend}</div>
+    ${pr_pointsHtml()}
+  `;
+
+  const pages = [];
+
+  for(let gi=0; gi<2; gi++){
+    let blocks = '';
+    for(let ti=0; ti<bl; ti++){
+      blocks += pr_matchBlock(miOf(gi, ti));
+    }
+
+    pages.push(`
+      <section class="page">
+        <div class="ttl">${esc(`${tLabel()} ${fmYM(S.month)} ${gi+1}試合目`)}</div>
+        <div class="layout">
+          <div class="left">${leftPanel}</div>
+          <div class="right">${blocks}</div>
+        </div>
+      </section>
+    `);
+  }
+
+  const css = `
+
+    @page{ size:A4; margin:10mm; }
+    body{ font-family:'Hiragino Kaku Gothic ProN','Meiryo','Yu Gothic',sans-serif; color:#111; }
+.bench{
+  word-break:break-all;
+}
+
+    /* A4 1ページに固定（勝手な分割を防ぐ） */
+    .page{ page-break-after:always; height:270mm; overflow:hidden; }
+    .page:last-child{ page-break-after:auto; }
+
+    .ttl{ font-size:14px; font-weight:700; margin:0 0 6px 0; }
+    .layout{ display:grid; grid-template-columns: 40% 60%; gap:8px; height:calc(270mm - 22mm); }
+    .left{ border-right:2px solid #ddd; padding-right:6px; overflow:hidden; }
+    .right{ overflow:hidden; }
+
+    .att{ font-size:10px; line-height:1.35; margin:0 0 6px 0; }
+
+    /* 左：集計 */
+    .pttl{ font-size:12px; font-weight:700; margin:0 0 6px 0; }
+    .st{ width:100%; border-collapse:collapse; table-layout:fixed; }
+    .st th,.st td{ border:1px solid #bbb; padding:3px 4px; font-size:9px; }
+    .st th{ background:#f3f3f3; }
+    .st td.pn{ width:46%; font-weight:700; }
+    .st td.pc{ width:16%; text-align:center; }
+    .st td.pt{ width:16%; text-align:center; font-weight:700; }
+    .pnote{ margin-top:6px; font-size:9px; color:#666; }
+
+    /* 右：試合ブロック（縦3つでも収まるように小さく） */
+    .mblk{ border:1px solid #aaa; border-radius:8px; padding:5px; margin:5px 0; break-inside:avoid; }
+    .mt{ font-size:11px; font-weight:700; margin-bottom:3px; }
+    .grid{ display:grid; grid-template-columns:1fr 1fr; gap:5px; break-inside:avoid; }
+    .bench{ font-size:9px; margin-top:4px; line-height:1.25; }
+
+    .qblk{ border:1px solid #ccc; border-radius:6px; padding:3px; }
+    .qhdr{ font-size:9px; font-weight:700; margin:0 0 2px 0; }
+    .form{ font-weight:700; }
+
+    /* ピッチ（さらに小さく：縦方向に3ブロック収まる） */
+    .pitchP{
+      position:relative;
+      width:100%;
+      height:50mm;              /* ← ここが効きます（小さく） */
+      border:1px solid #000;
+      border-radius:6px;
+      overflow:hidden;
+      background:#eee;
+      break-inside:avoid;
+    }
+    .pitchP .lines::before{
+      content:'';
+      position:absolute;
+      top:4%; left:10%;
+      width:80%; height:92%;
+      border:1px solid rgba(0,0,0,.35);
+    }
+    .pitchP .lines::after{
+      content:'';
+      position:absolute;
+      top:50%; left:10%;
+      width:80%;
+      border-top:1px solid rgba(0,0,0,.35);
+    }
+    .pitchP .cc{
+      position:absolute;
+      top:50%; left:50%;
+      width:18%; padding-bottom:18%;
+      transform:translate(-50%,-50%);
+      border:1px solid rgba(0,0,0,.35);
+      border-radius:50%;
+    }
+    .pitchP .ga{
+      position:absolute;
+      left:32%;
+      width:36%;
+      height:9%;
+      border:1px solid rgba(0,0,0,.35);
+    }
+    .pitchP .ga.top{ top:4%; border-top:none; }
+    .pitchP .ga.bot{ bottom:4%; border-bottom:none; }
+
+    .pd{
+      position:absolute;
+      transform:translate(-50%,-50%);
+      width:10mm; height:10mm;    /* ← 点も小さく */
+      border-radius:50%;
+      border:1px solid rgba(0,0,0,.55);
+      background:rgba(255,255,255,.85);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:0.5mm;
+      box-sizing:border-box;
+    }
+    .pd.occ{ background:rgba(33,150,243,.18); border-color:rgba(33,150,243,.6); }
+    .pd.gk.occ{ background:rgba(255,152,0,.18); border-color:rgba(255,152,0,.7); }
+    .pd .lb{ font-size:6.5pt; font-weight:700; line-height:1; }
+    .pd .nm{
+  font-size:6pt;
+  font-weight:700;
+  line-height:1.05;
+  margin-top:1px;
+
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+  `;
+
+  const html = `<!doctype html><html lang="ja"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>印刷</title>
+    <style>${css}</style>
+  </head><body>${pages.join('')}</body></html>`;
+
+  const w = window.open('', '_blank');
+  if(!w){
+    alert('ポップアップがブロックされました。ブラウザの設定で許可してください。');
     return;
   }
-  if(a==='rmb'){
-    if(!S.isMgr) return;
-    const el=t.closest('[data-a]');
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>w.print(), 200);
+}
+/* ================================================================
+ FORMATION MODAL (Senior Manager only)
+================================================================ */
+let _fctx = null; // {mi, q}
+
+function openFormModal(mi, q, curForm){
+  _fctx = {mi, q};
+  const list = document.getElementById('m-form-list');
+  if(!list) return;
+
+  // シニアは9人+10人すべて表示（FORMSの定義順）
+  const forms = Object.keys(FORMS);
+
+  list.innerHTML = forms.map(f => {
+    const sel = (f === curForm);
+    return `<button class="mform-btn ${sel?'sel':''}" data-a="fsel" data-mi="${mi}" data-q="${q}" data-form="${f}">
+      ${esc(formLabel(f))}
+    </button>`;
+  }).join('');
+
+  openM('m-form');
+}
+/* ================================================================
+   EVENT DELEGATION
+================================================================ */
+
+document.addEventListener('click', async e => {
+  const t = e.target;
+
+  /* --- LOGIN --- */
+  const tb = t.closest('.team-btn');
+  if (tb) {
+    document.querySelectorAll('.team-btn').forEach(b=>b.classList.remove('sel'));
+    tb.classList.add('sel');
+    S.team = tb.dataset.team;
+    goStep(2);
+    return;
+  }
+  const rb = t.closest('.role-btn');
+  if (rb && !rb.closest('.mbg')) {
+    document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('sel'));
+    rb.classList.add('sel');
+    S.group = rb.dataset.group;
+    S.role  = rb.dataset.role;
+    S.key   = `${S.team}_${S.group}`;
+    goStep(3);
+    return;
+  }
+  if (t.id === 'ls2-back') { goStep(1); return; }
+  if (t.id === 'ls3-back') { goStep(2); return; }
+  if (t.id === 'ls3-ok')   { await doLogin(); return; }
+
+  /* --- ACTIONS (data-a) --- */
+  const a = t.closest('[data-a]')?.dataset?.a;
+
+  // ★ シニア監督：フォーメーションモーダルを開く
+  if (a === 'fform') {
+    const el = t.closest('[data-a="fform"]');
+    openFormModal(+el.dataset.mi, el.dataset.q, el.dataset.form || DEF_FORM);
+    return;
+  }
+
+  // ★ フォーメーション選択（モーダル内）
+  if (a === 'fsel') {
+    const el = t.closest('[data-a="fsel"]');
+    await setForm(+el.dataset.mi, el.dataset.q, el.dataset.form);
+    closeM('m-form');
+    renderContent();
+    return;
+  }
+
+  // ★ フォーメーションモーダルを閉じる
+  if (t.id === 'm-form-cancel') { closeM('m-form'); return; }
+
+  // ★ 試合切替（1試合目 / 2試合目）
+  if (a === 'game') {
+    const el = t.closest('[data-a]');
+    S.gameIdx = +el.dataset.gi; // 0 or 1
+    renderContent();
+    return;
+  }
+
+  // ★ ペナントのタブ切替（現役 / OB / 混合）
+  if (a === 'ptab') {
+    const el = t.closest('[data-a]');
+    S.pennantTab = +el.dataset.ti; // 0..2
+    renderContent();
+    return;
+  }
+
+  // ★ 1試合目 → 2試合目 コピー
+  if (a === 'cp12') { await copyGame1toGame2(); return; }
+
+  /* --- SIDEBAR TOOLS --- */
+  if (a === 'roster') { openM('m-roster'); renderRoster(); return; }
+  if (a === 'rpos')   { doResetPos(); return; }
+
+  /* --- MATCH CARD --- */
+  if (a === 'cpq') {
+    const mi = +t.closest('[data-a]').dataset.mi;
+    await copyQ1toQ2(mi);
+    renderContent();
+    return;
+  }
+  if (a === 'cpos') {
+    if (!S.isMgr) return;
+    const el = t.closest('[data-a]');
+    openPosModal(+el.dataset.mi, el.dataset.q, el.dataset.pos, el.dataset.pid || null);
+    return;
+  }
+  if (a === 'rmb') {
+    if (!S.isMgr) return;
+    const el = t.closest('[data-a]');
     await rmBench(+el.dataset.mi, +el.dataset.bi);
-    renderContent(); return;
+    renderContent();
+    return;
   }
 
   /* --- HEADER --- */
-  if(t.id==='btn-addmon'){
-    const d=new Date(); d.setMonth(d.getMonth()+1);
-    document.getElementById('new-mon').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    openM('m-addmon'); return;
+  if (t.id === 'btn-addmon') {
+    const d = new Date(); d.setMonth(d.getMonth()+1);
+    document.getElementById('new-mon').value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    openM('m-addmon');
+    return;
   }
-  if(t.id==='btn-stats'){
-    S.statsOpen=!S.statsOpen;
-    const se=document.getElementById('stats');
-    if(S.statsOpen){ se.style.display='flex'; renderStats(); } else se.style.display='none'; return;
+  if (t.id === 'btn-stats') {
+    S.statsOpen = !S.statsOpen;
+    const se = document.getElementById('stats');
+    if (S.statsOpen) { se.style.display='flex'; renderStats(); }
+    else se.style.display='none';
+    return;
   }
-  if(t.id==='btn-menu'){ if(S.isMgr) openM('m-menu'); return; }
-  if(t.id==='btn-out'){
-    if(confirm('ログアウトしますか？')){ fbOff(); sessionStorage.removeItem('_s'); resetAppState(); showLogin(); }
+  if (t.id === 'btn-print') { doPrint(); return; }
+  if (t.id === 'btn-menu')  { if (S.isMgr) openM('m-menu'); return; }
+  if (t.id === 'btn-out') {
+    if (confirm('ログアウトしますか？')) {
+      fbOff();
+      sessionStorage.removeItem('_s');
+      resetAppState();
+      showLogin();
+    }
     return;
   }
 
   /* --- MENU MODAL --- */
-  if(t.id==='mm-roster'){ closeM('m-menu'); openM('m-roster'); renderRoster(); return; }
-  if(t.id==='mm-rpos')  { closeM('m-menu'); await resetPos(); return; }
-  if(t.id==='mm-rall')  { closeM('m-menu'); await resetAll(); return; }
-  if(t.id==='mm-pw')    { closeM('m-menu'); document.getElementById('pw-v').value=''; document.getElementById('pw-m').value=''; openM('m-pw'); return; }
-  if(t.id==='mm-close') { closeM('m-menu'); return; }
+  if (t.id === 'mm-roster') { closeM('m-menu'); openM('m-roster'); renderRoster(); return; }
+  if (t.id === 'mm-rpos')   { closeM('m-menu'); await resetPos(); return; }
+  if (t.id === 'mm-rall')   { closeM('m-menu'); await resetAll(); return; }
+  if (t.id === 'mm-pw') {
+    closeM('m-menu');
+    document.getElementById('pw-v').value='';
+    document.getElementById('pw-m').value='';
+    openM('m-pw');
+    return;
+  }
+  if (t.id === 'mm-close')  { closeM('m-menu'); return; }
 
   /* --- POS MODAL --- */
-  if(t.id==='m-pos-clear')  { await doPosModalClear(); return; }
-  if(t.id==='m-pos-cancel') { closeM('m-pos'); return; }
-  const mplb=t.closest('.mpl-btn');
-  if(mplb&&!mplb.classList.contains('placed')){ await doPosModalSel(mplb.dataset.pid); return; }
+  if (t.id === 'm-pos-clear')  { await doPosModalClear(); return; }
+  if (t.id === 'm-pos-cancel') { closeM('m-pos'); return; }
+  const mplb = t.closest('.mpl-btn');
+  if (mplb && !mplb.classList.contains('placed')) { await doPosModalSel(mplb.dataset.pid); return; }
 
   /* --- ROSTER MODAL --- */
-  if(t.id==='btn-addpl'){
-    const n=document.getElementById('new-name').value.trim();
-    const nk=document.getElementById('new-nick').value.trim();
-    if(n){ await addPlayer(n,nk); document.getElementById('new-name').value=''; document.getElementById('new-nick').value=''; renderRoster(); }
+  if (t.id === 'btn-addpl') {
+    const n  = document.getElementById('new-name').value.trim();
+    const nk = document.getElementById('new-nick').value.trim();
+    if (n) {
+      await addPlayer(n, nk);
+      document.getElementById('new-name').value='';
+      document.getElementById('new-nick').value='';
+      renderRoster();
+    }
     return;
   }
-  if(t.id==='btn-croster'){ closeM('m-roster'); return; }
-  const delb=t.closest('[data-a="delp"]');
-  if(delb){ const pid=delb.dataset.pid; if(confirm(`「${dispName(pid)}」を削除しますか？`)){ await delPlayer(pid); renderRoster(); } return; }
+  if (t.id === 'btn-croster') { closeM('m-roster'); return; }
+  const delb = t.closest('[data-a="delp"]');
+  if (delb) {
+    const pid = delb.dataset.pid;
+    if (confirm(`「${dispName(pid)}」を削除しますか？`)) { await delPlayer(pid); renderRoster(); }
+    return;
+  }
 
   /* --- PW MODAL --- */
-  if(t.id==='btn-savepw'){ await changePw(document.getElementById('pw-v').value, document.getElementById('pw-m').value); closeM('m-pw'); return; }
-  if(t.id==='btn-canpw') { closeM('m-pw'); return; }
+  if (t.id === 'btn-savepw') { await changePw(document.getElementById('pw-v').value, document.getElementById('pw-m').value); closeM('m-pw'); return; }
+  if (t.id === 'btn-canpw')  { closeM('m-pw'); return; }
 
   /* --- ADD MONTH MODAL --- */
-  if(t.id==='btn-confmon'){ const ym=document.getElementById('new-mon').value; if(!ym){alert('年月を選択してください');return;} await doAddMonth(ym); closeM('m-addmon'); return; }
-  if(t.id==='btn-canmon') { closeM('m-addmon'); return; }
+  if (t.id === 'btn-confmon') {
+    const ym = document.getElementById('new-mon').value;
+    if (!ym) { alert('年月を選択してください'); return; }
+    await doAddMonth(ym);
+    closeM('m-addmon');
+    return;
+  }
+  if (t.id === 'btn-canmon') { closeM('m-addmon'); return; }
 
   /* --- MODAL BACKDROP --- */
-  if(t.classList.contains('mbg')){ t.classList.remove('open'); return; }
-});
-
-document.addEventListener('change', async e=>{
-  const t=e.target;
-
-  if(t.classList.contains('pl-cb')){
-    if(!S.isMgr) return;
-    await setAttend(t.dataset.pid, t.checked);
-    renderRoster();
-    return;
-  }
-
-  if(t.classList.contains('roster-cb')){
-    if(!S.isMgr) return;
-    await setAttend(t.dataset.pid, t.checked);
-    renderSB();
-    renderContent();
-    renderRoster();
-    return;
-  }
-
-  if(t.dataset.a==='form'){ await setForm(+t.dataset.mi, t.dataset.q, t.value); renderContent(); return; }
-
-  if(t.id==='mon-sel'){
-    if(t.value===S.month) return;
-    S.month=t.value;
-    showLoad(true);
-    fbOff();
-    await loadMonth();
-    showLoad(false);
-    renderSB(); renderContent();
-    if(S.statsOpen) renderStats();
-    startListeners();
-  }
-});
-
-document.addEventListener('keydown',e=>{
-  if(e.key==='Enter'){
-    if(S.step===3){ document.getElementById('ls3-ok').click(); return; }
-    if(document.activeElement?.id==='new-name') document.getElementById('btn-addpl').click();
-  }
+  if (t.classList.contains('mbg')) { t.classList.remove('open'); return; }
 });
 
 /* ================================================================

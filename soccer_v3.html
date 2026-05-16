@@ -2165,6 +2165,21 @@ document.addEventListener('change', async (e) => {
     if (S.statsOpen) renderStats();
     return;
   }
+
+// フォーメーションselect変更（ペナント監督など）
+if (t.matches && t.matches('select[data-a="form"]')) {
+  const mi = +t.dataset.mi;
+  const q  = t.dataset.q;
+  const form = t.value;
+
+  await setForm(mi, q, form);
+
+  // 変更を即反映
+  renderContent();
+  renderSB();
+  if (S.statsOpen) renderStats();
+  return;
+}
 });
 document.addEventListener('click', async e => {
   const t = e.target;

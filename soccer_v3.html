@@ -169,7 +169,7 @@ input:focus{border-color:var(--accent)}
 }
 /* Content */
 #content{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px;
-  display:flex;flex-direction:column;gap:12px}
+  display:flex;flex-direction:column;gap:12px;min-height:0;}
 
 /* Match card */
 .mc{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
@@ -460,7 +460,7 @@ input:focus{border-color:var(--accent)}
   flex-direction:column;
 
   scroll-snap-align:start;
-  overflow:hidden;
+  overflow:visible;
 }
 /* ===== シニア監督：フォーメーション選択（モーダル） ===== */
 .fbtn{

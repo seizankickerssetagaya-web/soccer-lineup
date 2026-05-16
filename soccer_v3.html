@@ -496,6 +496,14 @@ input:focus{border-color:var(--accent)}
 .mform-btn.sel{border-color:var(--accent);background:rgba(255,193,7,.12)}
 
 .mc-body{ -webkit-overflow-scrolling: touch; }
+
+/* 小さいPC（縦が低い＋PC幅）だけピッチを少し小さくする */
+@media (max-height: 700px) and (min-width: 768px){
+  .pitch{
+    max-width: 300px;
+  }
+}
+
 </style>
 </head>
 <body>

@@ -503,6 +503,32 @@ input:focus{border-color:var(--accent)}
     max-width: 300px;
   }
 }
+/* ===== 印刷最適化（A4を2枚に収める） ===== */
+@media print {
+
+  /* 用紙設定 */
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  /* 余白削除＋軽く縮小 */
+  body {
+    margin: 0;
+    padding: 0;
+    zoom: 0.92; /* ←ここは0.90〜0.95で調整OK */
+  }
+
+  /* ピッチやカードを途中で分割しない */
+  .pitch,
+  .quarter,
+  .mc-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+}
+
 
 </style>
 </head>

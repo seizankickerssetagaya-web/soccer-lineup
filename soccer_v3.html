@@ -506,25 +506,31 @@ input:focus{border-color:var(--accent)}
 /* ===== 印刷最適化（A4を2枚に収める） ===== */
 @media print {
 
-  /* 用紙設定 */
+  /* 用紙設定（余白を減らす） */
   @page {
     size: A4;
-    margin: 10mm;
+    margin: 5mm;   /* ←10→5に縮小 */
   }
 
-  /* 余白削除＋軽く縮小 */
+  /* 全体縮小（スマホ用に強める） */
   body {
     margin: 0;
     padding: 0;
-    zoom: 0.92; /* ←ここは0.90〜0.95で調整OK */
+    zoom: 0.75;   /* ←ここが重要（0.7〜0.8で調整） */
   }
 
-  /* ピッチやカードを途中で分割しない */
+  /* ピッチを分割させない */
   .pitch,
   .quarter,
   .mc-card {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  /* 不要エリア削減（あれば入れる） */
+  #hdr,
+  #sb {
+    display: none !important;
   }
 
 }

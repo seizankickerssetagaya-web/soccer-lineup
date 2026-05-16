@@ -514,10 +514,12 @@ input:focus{border-color:var(--accent)}
 
   /* 全体縮小（スマホ用に強める） */
   body {
-    margin: 0;
-    padding: 0;
-    zoom: 0.75;   /* ←ここが重要（0.7〜0.8で調整） */
-  }
+  margin: 0;
+  padding: 0;
+
+  transform: scale(0.9);        /* ←これが重要 */
+  transform-origin: top left;   /* ←これ必須 */
+}
 
   /* ピッチを分割させない */
   .pitch,

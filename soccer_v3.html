@@ -1994,178 +1994,163 @@ function pr_matchBlock(mi){
 
 // ===== 印刷（A4: 2枚固定） =====
 function doPrint(){
-  const bl = baseLen();              // senior=1 / pennant=3
-  const attend = pr_presentLine();
-  const leftPanel = `
-    <div class="att">参加：${attend}</div>
-    ${pr_pointsHtml()}
-  `;
+  const bl = baseLen(); // senior=1 / pennant=3 
+  const attend = pr_presentLine(); 
+  const leftPanel = ` 
+  <div class="att">参加：${attend}</div> 
+  ${pr_pointsHtml()} 
+  `; 
+  const pages = []; 
+  for(let gi=0; gi<2; gi++){ 
+    let blocks = ''; 
+    for(let ti=0; ti<bl; ti++){ 
+      blocks += pr_matchBlock(miOf(gi, ti)); 
+    } 
+    pages.push(` 
+    <section class="page"> 
+      <div class="ttl">${esc(`${tLabel()} ${fmYM(S.month)} ${gi+1}試合目`)}</div> 
+      <div class="layout"> 
+        <div class="left">${leftPanel}</div> 
+        <div class="right">${blocks}</div> 
+      </div> 
+    </section> 
+    `); 
+  } 
 
-  const pages = [];
+  const css = ` 
+  @page{ size:A4; margin:10mm; } 
+  body{ font-family:'Hiragino Kaku Gothic ProN','Meiryo','Yu Gothic',sans-serif; color:#111; } 
+  .bench{ 
+    word-break:break-all; 
+  } 
+  /* A4 1ページに固定（勝手な分割を防ぐ） */ 
+  .page{ page-break-after:always; height:270mm; overflow:hidden; } 
+  .page:last-child{ page-break-after:auto; } 
+  .ttl{ font-size:14px; font-weight:700; margin:0 0 6px 0; } 
+  .layout{ display:grid; grid-template-columns: 40% 60%; gap:8px; height:calc(270mm - 22mm); } 
+  .left{ border-right:2px solid #ddd; padding-right:6px; overflow:hidden; } 
+  .right{ overflow:hidden; } 
+  .att{ font-size:10px; line-height:1.35; margin:0 0 6px 0; } 
+  /* 左：集計 */ 
+  .pttl{ font-size:12px; font-weight:700; margin:0 0 6px 0; } 
+  .st{ width:100%; border-collapse:collapse; table-layout:fixed; } 
+  .st th,.st td{ border:1px solid #bbb; padding:3px 4px; font-size:9px; } 
+  .st th{ background:#f3f3f3; } 
+  .st td.pn{ width:40%; font-weight:700; } 
+  .st td.pc{ width:16%; text-align:center; } 
+  .st td.pt{ width:16%; text-align:center; font-weight:700; } 
+  .pnote{ margin-top:6px; font-size:9px; color:#666; } 
+  /* 右：試合ブロック（縦3つでも収まるように小さく） */ 
+  .mblk{ border:1px solid #aaa; border-radius:8px; padding:5px; margin:5px 0; break-inside:avoid; } 
+  .mt{ font-size:11px; font-weight:700; margin-bottom:3px; } 
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:5px; break-inside:avoid; } 
+  .bench{ font-size:9px; margin-top:4px; line-height:1.25; } 
+  .qblk{ border:1px solid #ccc; border-radius:6px; padding:3px; } 
+  .qhdr{ font-size:9px; font-weight:700; margin:0 0 2px 0; } 
+  .form{ font-weight:700; } 
+  /* ピッチ（さらに小さく：縦方向に3ブロック収まる） */ 
+  .pitchP{ 
+    position:relative; 
+    width:100%; 
+    height:50mm; /* ← ここが効きます（小さく） */ 
+    border:1px solid #000; 
+    border-radius:6px; 
+    overflow:hidden; 
+    background:#eee; 
+    break-inside:avoid; 
+  } 
+  .pitchP .lines::before{ 
+    content:''; 
+    position:absolute; 
+    top:4%; left:10%; 
+    width:80%; height:92%; 
+    border:1px solid rgba(0,0,0,.35); 
+  } 
+  .pitchP .lines::after{ 
+    content:''; 
+    position:absolute; 
+    top:50%; left:10%; 
+    width:80%; 
+    border-top:1px solid rgba(0,0,0,.35); 
+  } 
+  .pitchP .cc{ 
+    position:absolute; 
+    top:50%; left:50%; 
+    width:18%; padding-bottom:18%; 
+    transform:translate(-50%,-50%); 
+    border:1px solid rgba(0,0,0,.35); 
+    border-radius:50%; 
+  } 
+  .pitchP .ga{ 
+    position:absolute; 
+    left:32%; 
+    width:36%; 
+    height:9%; 
+    border:1px solid rgba(0,0,0,.35); 
+  } 
+  .pitchP .ga.top{ top:4%; border-top:none; } 
+  .pitchP .ga.bot{ bottom:4%; border-bottom:none; } 
+  .pd{ 
+    position:absolute; 
+    transform:translate(-50%,-50%); 
+    width:10mm; height:10mm; /* ← 点も小さく */ 
+    border-radius:50%; 
+    border:1px solid rgba(30,90,140,.55); 
+    background:rgba(173,216,230,.45); /* 薄い青（全ポジション） */ 
+    display:flex; 
+    flex-direction:column; 
+    align-items:center; 
+    justify-content:center; 
+    text-align:center; 
+    padding:0.5mm; 
+    box-sizing:border-box; 
+  } 
+  /* 選手が入っている場合は少し濃い青 */ 
+  .pd.occ{ 
+    background:rgba(173,216,230,.75); 
+    border-color:rgba(30,90,140,.75); 
+  } 
+  /* ★ 2Qで1Qから変更があったポジション：薄いピンク */ 
+  .pd.chg.occ{ 
+    background:rgba(255,192,203,.75); 
+    border-color:rgba(233,30,99,.65); 
+  } 
+  /* GKも他と同じ（青に統一） */ 
+  .pd.gk.occ{ 
+    background:rgba(173,216,230,.75); 
+    border-color:rgba(30,90,140,.75); 
+  } 
+  .pd .lb{ font-size:6.5pt; font-weight:700; line-height:1; } 
+  .pd .nm{ 
+    font-size:6pt; 
+    font-weight:700; 
+    line-height:1.05; 
+    margin-top:1px; 
+    white-space:nowrap; 
+    overflow:hidden; 
+    text-overflow:ellipsis; 
+  } 
+  `; 
 
-  for(let gi=0; gi<2; gi++){
-    let blocks = '';
-    for(let ti=0; ti<bl; ti++){
-      blocks += pr_matchBlock(miOf(gi, ti));
-    }
+  const html = `<!doctype html><html lang="ja"><head> 
+    <meta charset="utf-8"> 
+    <meta name="viewport" content="width=device-width,initial-scale=1"> 
+    <title>印刷</title> 
+    <style>${css}</style> 
+    </head><body>${pages.join('')}</body></html>`; 
 
-    pages.push(`
-      <section class="page">
-        <div class="ttl">${esc(`${tLabel()} ${fmYM(S.month)} ${gi+1}試合目`)}</div>
-        <div class="layout">
-          <div class="left">${leftPanel}</div>
-          <div class="right">${blocks}</div>
-        </div>
-      </section>
-    `);
-  }
-
-  const css = `
-
-    @page{ size:A4; margin:10mm; }
-    body{ font-family:'Hiragino Kaku Gothic ProN','Meiryo','Yu Gothic',sans-serif; color:#111; }
-.bench{
-  word-break:break-all;
+  const w = window.open('', '_blank'); 
+  if(!w){ 
+    alert('ポップアップがブロックされました。ブラウザの設定で許可してください。'); 
+    return; 
+  } 
+  w.document.open(); 
+  w.document.write(html); 
+  w.document.close(); 
+  w.focus(); 
+  setTimeout(()=>w.print(), 200); 
 }
 
-    /* A4 1ページに固定（勝手な分割を防ぐ） */
-    .page{ page-break-after:always; height:270mm; overflow:hidden; }
-    .page:last-child{ page-break-after:auto; }
-
-    .ttl{ font-size:14px; font-weight:700; margin:0 0 6px 0; }
-    .layout{ display:grid; grid-template-columns: 40% 60%; gap:8px; height:calc(270mm - 22mm); }
-    .left{ border-right:2px solid #ddd; padding-right:6px; overflow:hidden; }
-    .right{ overflow:hidden; }
-
-    .att{ font-size:10px; line-height:1.35; margin:0 0 6px 0; }
-
-    /* 左：集計 */
-    .pttl{ font-size:12px; font-weight:700; margin:0 0 6px 0; }
-    .st{ width:100%; border-collapse:collapse; table-layout:fixed; }
-    .st th,.st td{ border:1px solid #bbb; padding:3px 4px; font-size:9px; }
-    .st th{ background:#f3f3f3; }
-    .st td.pn{ width:40%; font-weight:700; }
-    .st td.pc{ width:16%; text-align:center; }
-    .st td.pt{ width:16%; text-align:center; font-weight:700; }
-    .pnote{ margin-top:6px; font-size:9px; color:#666; }
-
-    /* 右：試合ブロック（縦3つでも収まるように小さく） */
-    .mblk{ border:1px solid #aaa; border-radius:8px; padding:5px; margin:5px 0; break-inside:avoid; }
-    .mt{ font-size:11px; font-weight:700; margin-bottom:3px; }
-    .grid{ display:grid; grid-template-columns:1fr 1fr; gap:5px; break-inside:avoid; }
-    .bench{ font-size:9px; margin-top:4px; line-height:1.25; }
-
-    .qblk{ border:1px solid #ccc; border-radius:6px; padding:3px; }
-    .qhdr{ font-size:9px; font-weight:700; margin:0 0 2px 0; }
-    .form{ font-weight:700; }
-
-    /* ピッチ（さらに小さく：縦方向に3ブロック収まる） */
-    .pitchP{
-      position:relative;
-      width:100%;
-      height:50mm;              /* ← ここが効きます（小さく） */
-      border:1px solid #000;
-      border-radius:6px;
-      overflow:hidden;
-      background:#eee;
-      break-inside:avoid;
-    }
-    .pitchP .lines::before{
-      content:'';
-      position:absolute;
-      top:4%; left:10%;
-      width:80%; height:92%;
-      border:1px solid rgba(0,0,0,.35);
-    }
-    .pitchP .lines::after{
-      content:'';
-      position:absolute;
-      top:50%; left:10%;
-      width:80%;
-      border-top:1px solid rgba(0,0,0,.35);
-    }
-    .pitchP .cc{
-      position:absolute;
-      top:50%; left:50%;
-      width:18%; padding-bottom:18%;
-      transform:translate(-50%,-50%);
-      border:1px solid rgba(0,0,0,.35);
-      border-radius:50%;
-    }
-    .pitchP .ga{
-      position:absolute;
-      left:32%;
-      width:36%;
-      height:9%;
-      border:1px solid rgba(0,0,0,.35);
-    }
-    .pitchP .ga.top{ top:4%; border-top:none; }
-    .pitchP .ga.bot{ bottom:4%; border-bottom:none; }
-
-.pd{
-  position:absolute;
-  transform:translate(-50%,-50%);
-  width:10mm; height:10mm;    /* ← 点も小さく */
-  border-radius:50%;
-  border:1px solid rgba(30,90,140,.55);
-  background:rgba(173,216,230,.45); /* 薄い青（全ポジション） */
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  padding:0.5mm;
-  box-sizing:border-box;
-}
-
-/* 選手が入っている場合は少し濃い青 */
-.pd.occ{
-  background:rgba(173,216,230,.75);
-  border-color:rgba(30,90,140,.75);
-}
-
-/* ★ 2Qで1Qから変更があったポジション：薄いピンク */
-.pd.chg.occ{
-  background:rgba(255,192,203,.75);
-  border-color:rgba(233,30,99,.65);
-}
-
-/* GKも他と同じ（青に統一） */
-.pd.gk.occ{
-  background:rgba(173,216,230,.75);
-  border-color:rgba(30,90,140,.75);
-}
-    .pd .lb{ font-size:6.5pt; font-weight:700; line-height:1; }
-    .pd .nm{
-  font-size:6pt;
-  font-weight:700;
-  line-height:1.05;
-  margin-top:1px;
-
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-  `;
-
-  const html = `<!doctype html><html lang="ja"><head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>印刷</title>
-    <style>${css}</style>
-  </head><body>${pages.join('')}</body></html>`;
-
-  const w = window.open('', '_blank');
-  if(!w){
-    alert('ポップアップがブロックされました。ブラウザの設定で許可してください。');
-    return;
-  }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  setTimeout(()=>w.print(), 200);
-}
 /* ================================================================
  FORMATION MODAL (Senior Manager only)
 ================================================================ */

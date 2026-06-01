@@ -169,7 +169,8 @@ input:focus{border-color:var(--accent)}
 }
 /* Content */
 #content{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px;
-  display:flex;flex-direction:column;gap:12px;min-height:0;}
+  display:flex;flex-direction:column;gap:12px;min-height:0;
+  -webkit-overflow-scrolling:touch;}
 
 /* Match card */
 .mc{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
@@ -182,36 +183,52 @@ input:focus{border-color:var(--accent)}
 .mc-body{
   display:flex;
   gap:8px;
-  padding:8px;
+  padding:8px 16px;
+  justify-content:center;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
 }
 
 /* ▼ PC：スクロール禁止＋左詰め（ここが重要） */
 @media(min-width:768px){
+  /* PC: 1Q・2Qを横並び・大きく表示 */
   .mc-body{
-    gap:4px;
-    justify-content:flex-start;
-    overflow-x:visible;   /* ★ auto を上書き */
-    scroll-snap-type:none;/* ★ スナップも無効に */
+    display:flex !important;
+    gap:16px !important;
+    justify-content:center !important;
+    overflow-x:auto !important;
+    scroll-snap-type:none !important;
   }
-
   .quarter{
-    flex:0 0 auto;
-    width:48%;
+    flex:0 0 auto !important;
+    width:540px !important;
+    min-width:540px !important;
+    padding:0 !important;
+  }
+  .pitch{
+    width:520px !important;
+    height:780px !important;
+    max-width:520px !important;
+    aspect-ratio:unset !important;
+    margin:0 auto;
+  }
+  .pdot{
+    width:88px !important;
+    height:88px !important;
+  }
+  .p-nm{
+    font-size:18px !important;
+    max-width:82px !important;
+    white-space:normal !important;
+    line-height:1.2 !important;
+    text-align:center !important;
+  }
+  .p-lb{
+    font-size:13px !important;
   }
 }
 /* ▼ PC専用：強制的にスクロール禁止＋左詰め */
-@media(min-width:768px){
-  .mc-body{
-    justify-content:flex-start !important;
-    overflow-x:hidden !important;
-    scroll-snap-type:none !important;
-  }
-
-  .quarter{
-    flex:0 0 auto !important;
-    width:48% !important;
-  }
-}
+/* FIX: 競合するPCメディアクエリを削除 */
 
 
 /* ▼ スマホ */
@@ -234,17 +251,23 @@ input:focus{border-color:var(--accent)}
 /* Pitch */
 .pitch{
   position:relative;
-  width:100%;
-
-  aspect-ratio: 2 / 3;   /* ★縦横比固定 */
-
   border-radius:8px;
   overflow:hidden;
   background:#2e7d32;
-  border:2px solid rgba(255,255,255,.22);  /* ←ここに ; 必須 */
-
-  max-width:360px;
+  border:2px solid rgba(255,255,255,.22);
   margin:0 auto;
+  /* デフォルト(全画面共通) */
+  width:100%;
+  max-width:220px;
+  aspect-ratio:2/3;
+}
+/* スマホ専用 */
+@media(max-width:767px){
+  .pitch{
+    max-width:220px;
+    aspect-ratio:2/3;
+    height:auto;
+  }
 }
 
 /* Field markings via separate overlay */
@@ -308,21 +331,7 @@ input:focus{border-color:var(--accent)}
 }
 
 /* ▼ PCだけ拡大 */
-@media(min-width:768px){
-  .pdot{
-    width:64px;
-    height:64px;
-  }
-
-  .p-nm{
-    font-size:15px;
-    max-width:60px;
-  }
-
-  .p-lb{
-    font-size:12px;
-  }
-}
+/* pdot PC sizes moved to unified @media block above */
 /* Bench */
 .bench-wrap{padding:8px 10px;border-top:1px solid var(--border)}
 .bench-head{font-size:11px;color:var(--dim);margin-bottom:5px;
@@ -441,16 +450,8 @@ input:focus{border-color:var(--accent)}
 }
 
 /* 親の overflow によるクリップを回避 */
-.mc-body{
-  display:flex;
-  gap:8px;
-  padding:8px;
-
- overflow-y:visible;
-
-  scroll-snap-type:x mandatory;
-  -webkit-overflow-scrolling: touch;
-}
+/* scroll-snap removed - using flex layout instead */
+.mc-body-snap-removed{display:none}
 
 .quarter{
   flex:0 0 85%;
@@ -495,14 +496,10 @@ input:focus{border-color:var(--accent)}
 .mform-btn:hover{background:rgba(255,255,255,.12);border-color:var(--accent)}
 .mform-btn.sel{border-color:var(--accent);background:rgba(255,193,7,.12)}
 
-.mc-body{ -webkit-overflow-scrolling: touch; }
+/* duplicate mc-body removed */
 
 /* 小さいPC（縦が低い＋PC幅）だけピッチを少し小さくする */
-@media (max-height: 700px) and (min-width: 768px){
-  .pitch{
-    max-width: 300px;
-  }
-}
+/* FIX: pitch max-width は本体に統合済み */
 /* ===== 印刷最適化（A4を2枚に収める） ===== */
 @media print {
 
@@ -954,21 +951,104 @@ function calcAge(dobStr){
 }
 
 // 既定名簿（ログイン後、名簿が空のときだけ使う）
-function defaultMembers(teamKey, groupKey){
-  return RAW_MEMBERS
-    .filter(m => m.team === teamKey)
-    .filter(m => {
-      const age = calcAge(m.dob);
-      if (age === null) return true;          // 生年月日不明は両方に出す
-      if (groupKey === 'senior') return age >= 60;
-      if (groupKey === 'pennant') return age < 65;
-      return true;
-    })
-    .map(m => ({ name:m.name, nick:m.nick }));
+function defaultMembers(team, group) {
+  // MEMBER_DATAが定義されていれば優先使用
+  if (typeof MEMBER_DATA !== 'undefined' && MEMBER_DATA[team]?.[group]) {
+    return MEMBER_DATA[team][group];
+  }
+  return [];
 }
 
 /* デフォルトパスワード（Firebase未設定時のフォールバック）
    監督は Firebase Console で変更可能 */
+
+const MEMBER_DATA = {
+  sharks:{
+    senior:[
+      {name:'坂内　和典',nick:'坂内'},{name:'高場　利博',nick:'高場'},
+      {name:'片山　晃臣',nick:'片山'},{name:'川口　健男',nick:'川口'},
+      {name:'手取　純一',nick:'手取'},{name:'柴田　徇也',nick:'柴田'},
+      {name:'大原　正昭',nick:'大原'},{name:'近見　竹彦',nick:'近見'},
+      {name:'岡野　夏井',nick:'岡野夏'},{name:'藤田　透',nick:'藤田透'},
+      {name:'中井　秀一',nick:'中井'},{name:'山本　隆一郎',nick:'山本'},
+      {name:'酒井　哲郎',nick:'酒井'},{name:'伊藤　洋',nick:'伊藤'},
+      {name:'中村　弘樹',nick:'中村'},{name:'関谷　央憲',nick:'関谷'},
+      {name:'佐藤　新',nick:'佐藤新'},{name:'及部　尚政',nick:'及部'},
+    ],
+    pennant:[
+      {name:'板垣　信孝',nick:'板垣'},{name:'猪瀬　弘',nick:'猪瀬'},
+      {name:'隠岐　泰介',nick:'隠岐'},{name:'八木　敦司',nick:'八木'},
+      {name:'加賀谷　毅',nick:'加賀谷'},{name:'伊藤　秀',nick:'伊藤秀'},
+      {name:'笹嶋　英之',nick:'笹嶋'},{name:'西山　史朗',nick:'西山'},
+      {name:'神野　光正',nick:'神野'},{name:'飯野　英雄',nick:'飯野'},
+      {name:'石川　貴之',nick:'石川'},{name:'田邉　洋一',nick:'田邉'},
+      {name:'関　大',nick:'関'},{name:'岡野　祐介',nick:'岡野'},
+      {name:'田中　健二',nick:'田中'},{name:'飛永　琢磨',nick:'飛永'},
+      {name:'橋本　良輔',nick:'橋本'},{name:'多田　尚弘',nick:'多田'},
+      {name:'小幡　俊輔',nick:'小幡'},{name:'奥角　翼',nick:'奥角'},
+      {name:'茂木　昭典',nick:'茂木'},{name:'高橋　洋司',nick:'高橋'},
+      {name:'難波　経太',nick:'難波'},
+    ]
+  },
+  bulls:{
+    senior:[
+      {name:'矢野　嘉朗',nick:'矢野'},{name:'堀江　勝美',nick:'堀江'},
+      {name:'狩野　祐光',nick:'狩野'},{name:'橋本　清',nick:'橋本清'},
+      {name:'中山　芳郎',nick:'中山'},{name:'石田　祐幸',nick:'石田'},
+      {name:'野呂　英之',nick:'野呂'},{name:'伊藤　優',nick:'伊藤優'},
+      {name:'山村　周三',nick:'山村'},{name:'大林　正明',nick:'大林'},
+      {name:'小川　洋治',nick:'小川'},{name:'杉山　栄敏',nick:'杉山'},
+      {name:'大清水　恒雄',nick:'大清水'},{name:'阿部　弘明',nick:'阿部'},
+      {name:'西田　隆志',nick:'西田'},{name:'内田　マコト',nick:'内田'},
+      {name:'許　重九',nick:'許'},{name:'坂入　俊光',nick:'坂入'},
+      {name:'小林　憲司',nick:'小林憲'},
+    ],
+    pennant:[
+      {name:'森山　頼洋',nick:'森山'},{name:'河野　寿之',nick:'河野'},
+      {name:'田口　幹展',nick:'田口'},{name:'紀藤　政寿',nick:'紀藤'},
+      {name:'古川　浩之',nick:'古川'},{name:'竹田　昇',nick:'竹田'},
+      {name:'都島　崇',nick:'都島'},{name:'玉置　充弘',nick:'玉置'},
+      {name:'小林　浩一',nick:'小林浩'},{name:'高木　順英',nick:'高木'},
+      {name:'久山　毅',nick:'久山'},{name:'武居　新',nick:'武居'},
+      {name:'村井　大輔',nick:'村井'},{name:'藤枝　祐太',nick:'藤枝'},
+      {name:'沼　友和',nick:'沼'},{name:'小西　正記',nick:'小西'},
+      {name:'堀田　啓介',nick:'堀田'},{name:'秦　政輝',nick:'秦政'},
+      {name:'町田　和弘',nick:'町田'},{name:'國場　丈司',nick:'國場'},
+      {name:'西脇　憲太朗',nick:'西脇'},{name:'加藤　陽',nick:'加藤'},
+      {name:'小山　大樹',nick:'小山'},{name:'ヴェストリン　オレ',nick:'オレ'},
+      {name:'高柳　伸自',nick:'ナギ'},{name:'秦　俊樹',nick:'秦俊'},
+    ]
+  },
+  hawks:{
+    senior:[
+      {name:'牧　壮',nick:'牧'},{name:'佐藤　義時',nick:'佐藤義'},
+      {name:'遊佐　祐孝',nick:'遊佐'},{name:'住山　一貞',nick:'住山'},
+      {name:'中尾　一成',nick:'中尾'},{name:'石原　敏男',nick:'石原'},
+      {name:'渡邊　修',nick:'渡邊'},{name:'太田　雄二郎',nick:'太田'},
+      {name:'青木　功',nick:'青木'},{name:'福田　博',nick:'福田'},
+      {name:'加々美　晶',nick:'加々美'},{name:'鈴木　達也',nick:'鈴木'},
+      {name:'森本　正法',nick:'森本'},{name:'小林　靖弘',nick:'小林靖'},
+      {name:'中出　正広',nick:'中出'},{name:'狩野　光博',nick:'狩野光'},
+      {name:'佐藤　紀之',nick:'佐藤紀'},{name:'藤田　誠司',nick:'藤田誠'},
+      {name:'藤原　秀彦',nick:'藤原'},{name:'大橋　将宏',nick:'大橋'},
+    ],
+    pennant:[
+      {name:'杉原　穣',nick:'杉原'},{name:'山本　憲央',nick:'山本憲'},
+      {name:'小野寺　創',nick:'小野寺'},{name:'水落　一隆',nick:'水落'},
+      {name:'田中　雅文',nick:'田中雅'},{name:'山田　修',nick:'山田'},
+      {name:'青沼　裕',nick:'青沼'},{name:'北澤　俊二',nick:'北澤'},
+      {name:'砂川　啓之',nick:'砂川'},{name:'田中　徹',nick:'田中徹'},
+      {name:'千野　晃良',nick:'千野'},{name:'肥後　盛史',nick:'肥後'},
+      {name:'川瀬　圭',nick:'川瀬'},{name:'岡本　功治',nick:'岡本'},
+      {name:'菊田　理',nick:'菊田'},{name:'小武　秀彰',nick:'小武'},
+      {name:'尾熊　孝史',nick:'尾熊'},{name:'前濱　洋平',nick:'前濱'},
+      {name:'植野　史央',nick:'植野'},{name:'竹見　智彦',nick:'竹見'},
+      {name:'小宮　敏行',nick:'小宮'},{name:'千葉　剛',nick:'千葉'},
+      {name:'吉村　智宏',nick:'吉村'},{name:'黒崎　淳',nick:'黒崎'},
+      {name:'前山　信之',nick:'前山'},
+    ]
+  }
+};
 const DEF_PW = {
   sharks_senior:  { viewer:'sharks1',  manager:'sharks_mgr'  },
   sharks_pennant: { viewer:'sharksP1', manager:'sharksP_mgr' },
@@ -1390,8 +1470,8 @@ async function copyGame1toGame2() {
   if (S.statsOpen) renderStats();
 }
 async function setForm(mi,q,form) {
-  await fbSet(`${mPath()}/matches/${mi}/${q}/formation`,form);
-  S.matches[mi][q].formation=form;
+  S.matches[mi][q].formation = form;
+  await fbSet(`${mPath()}/matches/${mi}/${q}/formation`, form);
 }
 
 
@@ -2466,11 +2546,13 @@ async function doLogin(){
     sessionStorage.setItem('_s',JSON.stringify({team:S.team,group:S.group,role:S.role,key:S.key}));
     document.getElementById('login').style.display='none';
     showLoad(true);
-    await ensurePw();
-    await loadMonths();
-    S.month=YM();
-    if(!S.months.includes(S.month)){ S.months.push(S.month); S.months.sort(); }
-    await loadMonth();
+    try {
+      await ensurePw();
+      await loadMonths();
+      S.month=YM();
+      if(!S.months.includes(S.month)){ S.months.push(S.month); S.months.sort(); }
+      await loadMonth();
+    } catch(e){ console.warn('doLogin viewer error:', e); }
     showLoad(false);
     launchApp();
     return;
@@ -2478,18 +2560,21 @@ async function doLogin(){
   const pw=document.getElementById('ls3-pw').value;
   const btn=document.getElementById('ls3-ok');
   btn.disabled=true; btn.textContent='確認中...';
-  const ok=await checkPw(S.key, S.role, pw);
+  let ok=false;
+  try { ok=await checkPw(S.key, S.role, pw); } catch(e){ console.warn(e); }
   btn.disabled=false; btn.textContent='ログイン';
   if(!ok){ document.getElementById('ls3-err').textContent='❌ パスワードが違います'; return; }
   S.isMgr=S.role==='manager';
   sessionStorage.setItem('_s',JSON.stringify({team:S.team,group:S.group,role:S.role,key:S.key}));
   document.getElementById('login').style.display='none';
   showLoad(true);
-  await ensurePw();
-  await loadMonths();
-  S.month=YM();
-  if(!S.months.includes(S.month)){ S.months.push(S.month); S.months.sort(); }
-  await loadMonth();
+  try {
+    await ensurePw();
+    await loadMonths();
+    S.month=YM();
+    if(!S.months.includes(S.month)){ S.months.push(S.month); S.months.sort(); }
+    await loadMonth();
+  } catch(e){ console.warn('doLogin manager error:', e); }
   showLoad(false);
   launchApp();
 }
@@ -2531,30 +2616,43 @@ function showLoad(v){ document.getElementById('loading').style.display=v?'flex':
    BOOTSTRAP
 ================================================================ */
 async function boot(){
-  if('serviceWorker' in navigator)
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  // 10秒でタイムアウト → ログイン画面を強制表示
+  const safetyTimer = setTimeout(()=>{
+    showLoad(false); showLogin();
+  }, 10000);
 
-  initFB();
+  try {
+    initFB();
 
-  // Session restore
-  const saved=sessionStorage.getItem('_s');
-  if(saved){
-    try{
-      const sess=JSON.parse(saved);
-      S.team=sess.team; S.group=sess.group; S.role=sess.role; S.key=sess.key;
-      S.isMgr=sess.role==='manager';
-      await loadMonths();
-      S.month=YM();
-      if(!S.months.includes(S.month)){ S.months.push(S.month); S.months.sort(); }
-      await loadMonth();
-      showLoad(false);
-      launchApp();
-      return;
-    }catch(e){ sessionStorage.removeItem('_s'); }
+    // セッション復元
+    const saved = sessionStorage.getItem('_s');
+    if(saved){
+      try{
+        const sess = JSON.parse(saved);
+        S.team=sess.team; S.group=sess.group; S.role=sess.role; S.key=sess.key;
+        S.isMgr = sess.role==='manager';
+        await loadMonths();
+        S.month = YM();
+        if(!S.months.includes(S.month)){ S.months.push(S.month); S.months.sort(); }
+        await loadMonth();
+        clearTimeout(safetyTimer);
+        showLoad(false);
+        launchApp();
+        return;
+      }catch(e){
+        console.warn('Session restore failed:', e);
+        sessionStorage.removeItem('_s');
+      }
+    }
+    clearTimeout(safetyTimer);
+    showLoad(false);
+    showLogin();
+  } catch(e) {
+    console.error('Boot error:', e);
+    clearTimeout(safetyTimer);
+    showLoad(false);
+    showLogin();
   }
-
-  showLoad(false);
-  showLogin();
 }
 
 boot();

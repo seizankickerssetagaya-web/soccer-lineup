@@ -543,6 +543,53 @@ width: 125%;
 }
 
 
+
+/* ===== スマホ サイドバートグル ===== */
+@media(max-width:767px){
+  /* トグルボタン: ヘッダーに表示 */
+  #btn-sb-toggle{
+    display:flex !important;
+    align-items:center;
+    justify-content:center;
+    width:32px;height:32px;
+    background:rgba(255,255,255,.15);
+    border:1px solid rgba(255,255,255,.3);
+    border-radius:6px;
+    color:#fff;font-size:16px;
+    cursor:pointer;flex-shrink:0;
+  }
+  /* サイドバー: 非表示がデフォルト */
+  #sb{
+    display:none !important;
+    position:fixed !important;
+    top:0;left:0;
+    width:200px !important;
+    height:100vh !important;
+    z-index:300;
+    box-shadow:4px 0 20px rgba(0,0,0,.5);
+    transition:transform .22s ease;
+    transform:translateX(-100%);
+    padding-top:env(safe-area-inset-top,0px);
+  }
+  /* 開いている状態 */
+  #sb.sb-open{
+    display:flex !important;
+    transform:translateX(0);
+  }
+  /* オーバーレイ背景 */
+  #sb-overlay{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.45);
+    z-index:299;
+  }
+  #sb-overlay.show{display:block;}
+}
+/* PC: トグルボタン非表示 */
+@media(min-width:768px){
+  #btn-sb-toggle{display:none !important;}
+  #sb-overlay{display:none !important;}
+}
 </style>
 </head>
 <body>
@@ -609,9 +656,11 @@ width: 125%;
 </div>
 
 <!-- APP -->
+<div id="sb-overlay" onclick="closeSidebar()"></div>
 <div id="app">
   <!-- Header -->
   <div id="hdr">
+    <button id="btn-sb-toggle" onclick="toggleSidebar()">☰</button>
     <div class="h-team" id="h-team">---</div>
     <div class="h-badge" id="h-badge">---</div>
     <div class="h-sp"></div>
@@ -2636,6 +2685,27 @@ function showLoad(v){ document.getElementById('loading').style.display=v?'flex':
 /* ================================================================
    BOOTSTRAP
 ================================================================ */
+
+/* ===== サイドバートグル（スマホ用） ===== */
+function toggleSidebar() {
+  const sb = document.getElementById('sb');
+  const ov = document.getElementById('sb-overlay');
+  if (sb.classList.contains('sb-open')) {
+    closeSidebar();
+  } else {
+    sb.classList.add('sb-open');
+    ov.classList.add('show');
+    document.getElementById('btn-sb-toggle').textContent = '✕';
+  }
+}
+function closeSidebar() {
+  const sb = document.getElementById('sb');
+  const ov = document.getElementById('sb-overlay');
+  sb.classList.remove('sb-open');
+  ov.classList.remove('show');
+  const btn = document.getElementById('btn-sb-toggle');
+  if (btn) btn.textContent = '☰';
+}
 async function boot(){
   // 10秒でタイムアウト → ログイン画面を強制表示
   const safetyTimer = setTimeout(()=>{

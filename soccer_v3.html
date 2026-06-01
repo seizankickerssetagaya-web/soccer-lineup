@@ -92,7 +92,7 @@ input:focus{border-color:var(--accent)}
 /* Header */
 #hdr{height:var(--hh);background:var(--green3);border-bottom:2px solid var(--green2);
   display:flex;align-items:center;padding:0 10px;gap:7px;flex-shrink:0;z-index:100;
-  overflow:hidden}
+  overflow:visible}
 .h-team{font-size:12px;font-weight:700;color:var(--accent);white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis;max-width:130px;flex-shrink:0}
 .h-badge{font-size:10px;padding:2px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0}
@@ -536,9 +536,7 @@ width: 125%;
 
   /* 不要エリア削減（あれば入れる） */
   #hdr,
-  #sb {
-    display: none !important;
-  }
+  /* #sb hide moved to toggle CSS */
 
 }
 
@@ -551,12 +549,14 @@ width: 125%;
     display:flex !important;
     align-items:center;
     justify-content:center;
-    width:32px;height:32px;
-    background:rgba(255,255,255,.15);
-    border:1px solid rgba(255,255,255,.3);
-    border-radius:6px;
-    color:#fff;font-size:16px;
+    width:36px;height:36px;
+    background:rgba(255,255,255,.18);
+    border:1.5px solid rgba(255,255,255,.4);
+    border-radius:8px;
+    color:#fff;font-size:20px;
     cursor:pointer;flex-shrink:0;
+    order:-1;   /* ヘッダー最左端に配置 */
+    margin-right:4px;
   }
   /* サイドバー: 非表示がデフォルト */
   #sb{

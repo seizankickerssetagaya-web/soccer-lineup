@@ -1370,7 +1370,7 @@ async function ensurePw() {
 async function loadMonths() {
   const d = await fbGet(tPath());
   const ms = [];
-  if (d) Object.keys(d).forEach(k=>{ if(/^|d{4}-|d{2}|/.test(k)) ms.push(k); });
+  if (d) Object.keys(d).forEach(k=>{ if(/^\d{4}-\d{2}$/.test(k)) ms.push(k); });
   ms.sort();
   const cm = YM();
   if (!ms.includes(cm)) ms.push(cm);
@@ -2281,20 +2281,41 @@ document.addEventListener('change', async (e) => {
     return;
   }
 
-// フォーメーションselect変更（ペナント監督など）
-if (t.matches && t.matches('select[data-a="form"]')) {
-  const mi = +t.dataset.mi;
-  const q  = t.dataset.q;
-  const form = t.value;
+// 年月セレクト変更
+  if (t.id === 'mon-sel') {
+    const ym = t.value;
+    if (ym === S.month) return;
+    S.month = ym;
+    // 選択した月をセッションに保存
+    try {
+      const s = JSON.parse(sessionStorage.getItem('_s') || '{}');
+      s.month = ym;
+      sessionStorage.setItem('_s', JSON.stringify(s));
+    } catch(e) {}
+    showLoad(true);
+    fbOff();
+    await loadMonth();
+    showLoad(false);
+    renderMonSel(); renderSB(); renderContent();
+    if (S.statsOpen) renderStats();
+    startListeners();
+    return;
+  }
 
-  await setForm(mi, q, form);
+  // フォーメーションselect変更（ペナント監督など）
+  if (t.matches && t.matches('select[data-a="form"]')) {
+    const mi = +t.dataset.mi;
+    const q  = t.dataset.q;
+    const form = t.value;
 
-  // 変更を即反映
-  renderContent();
-  renderSB();
-  if (S.statsOpen) renderStats();
-  return;
-}
+    await setForm(mi, q, form);
+
+    // 変更を即反映
+    renderContent();
+    renderSB();
+    if (S.statsOpen) renderStats();
+    return;
+  }
 });
 document.addEventListener('click', async e => {
   const t = e.target;
@@ -2543,7 +2564,7 @@ async function doLogin(){
   // 閲覧者はパスワード不要
   if(S.role==='viewer'){
     S.isMgr=false;
-    sessionStorage.setItem('_s',JSON.stringify({team:S.team,group:S.group,role:S.role,key:S.key}));
+    sessionStorage.setItem('_s',JSON.stringify({team:S.team,group:S.group,role:S.role,key:S.key,month:S.month}));
     document.getElementById('login').style.display='none';
     showLoad(true);
     try {
@@ -2565,7 +2586,7 @@ async function doLogin(){
   btn.disabled=false; btn.textContent='ログイン';
   if(!ok){ document.getElementById('ls3-err').textContent='❌ パスワードが違います'; return; }
   S.isMgr=S.role==='manager';
-  sessionStorage.setItem('_s',JSON.stringify({team:S.team,group:S.group,role:S.role,key:S.key}));
+  sessionStorage.setItem('_s',JSON.stringify({team:S.team,group:S.group,role:S.role,key:S.key,month:S.month}));
   document.getElementById('login').style.display='none';
   showLoad(true);
   try {
@@ -2632,7 +2653,8 @@ async function boot(){
         S.team=sess.team; S.group=sess.group; S.role=sess.role; S.key=sess.key;
         S.isMgr = sess.role==='manager';
         await loadMonths();
-        S.month = YM();
+        // 前回見ていた月を復元。なければ今月
+        S.month = (sess.month && S.months.includes(sess.month)) ? sess.month : YM();
         if(!S.months.includes(S.month)){ S.months.push(S.month); S.months.sort(); }
         await loadMonth();
         clearTimeout(safetyTimer);
